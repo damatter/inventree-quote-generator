@@ -62,7 +62,10 @@ def test_reference_quote_content_is_rendered():
     assert "REDPATH SUGAR" in text
     assert "Burt 704 Spare Parts" in text
     assert "W10372DC" in text
-    assert "$168.83 ea." in text
+    assert "Price ea." in text
+    assert "Extended price" in text
+    assert "$168.83" in text
+    assert "$2,194.79" in text
 
 
 def test_many_lines_continue_to_additional_pages():

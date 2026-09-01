@@ -32,6 +32,65 @@
     </section>
     {% endif %}
 
+    {% if can_manage_defaults %}
+    <details class="card defaults-card"{% if defaults_form.errors %} open{% endif %}>
+        <summary>
+            <span><strong>Defaults for new quotes</strong><small>Set the starting value for every reusable quote field.</small></span>
+        </summary>
+        <div class="defaults-body">
+            {% if defaults_form.errors %}<div class="error-banner"><strong>The defaults need attention.</strong> Review the highlighted values below.</div>{% endif %}
+            <form method="post" data-defaults-form>
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="save_defaults">
+                <div class="defaults-section">
+                    <h3>Customer and quote</h3>
+                    <div class="field-grid">
+                        <div class="field third"><label for="{{ defaults_form.customer.id_for_label }}">Default customer</label>{{ defaults_form.customer }}</div>
+                        <div class="field third"><label for="{{ defaults_form.attention.id_for_label }}">Attention</label>{{ defaults_form.attention }}</div>
+                        <div class="field third"><label for="{{ defaults_form.subject.id_for_label }}">Subject</label>{{ defaults_form.subject }}</div>
+                        <div class="field quarter"><label for="{{ defaults_form.status.id_for_label }}">Status</label>{{ defaults_form.status }}</div>
+                        <div class="field quarter"><label for="{{ defaults_form.currency.id_for_label }}">Currency</label>{{ defaults_form.currency }}</div>
+                        <div class="field quarter"><label for="{{ defaults_form.valid_days.id_for_label }}">Valid for days</label>{{ defaults_form.valid_days }}{% for error in defaults_form.valid_days.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                        <div class="field quarter"><div class="check-row">{{ defaults_form.show_totals }}<div class="check-copy"><label for="{{ defaults_form.show_totals.id_for_label }}">Show subtotal</label><span class="help">Selected on new quotes.</span></div></div></div>
+                    </div>
+                </div>
+                <div class="defaults-section">
+                    <h3>Letterhead</h3>
+                    <div class="field-grid">
+                        <div class="field third"><label for="{{ defaults_form.company_name.id_for_label }}">Company name</label>{{ defaults_form.company_name }}</div>
+                        <div class="field two-thirds"><label for="{{ defaults_form.company_address.id_for_label }}">Address</label>{{ defaults_form.company_address }}<span class="help">May contain more than one line.</span></div>
+                        <div class="field third"><label for="{{ defaults_form.company_phone.id_for_label }}">Phone</label>{{ defaults_form.company_phone }}</div>
+                    </div>
+                </div>
+                <div class="defaults-section">
+                    <h3>Presentation and wording</h3>
+                    <div class="field-grid">
+                        <div class="field"><label for="{{ defaults_form.intro_text.id_for_label }}">Opening paragraph</label>{{ defaults_form.intro_text }}</div>
+                        <div class="field third"><label for="{{ defaults_form.manufacturer.id_for_label }}">Manufacturer</label>{{ defaults_form.manufacturer }}</div>
+                        <div class="field third"><label for="{{ defaults_form.item_name.id_for_label }}">Item name</label>{{ defaults_form.item_name }}</div>
+                        <div class="field third"><label for="{{ defaults_form.model_name.id_for_label }}">Model</label>{{ defaults_form.model_name }}</div>
+                        <div class="field"><label for="{{ defaults_form.availability.id_for_label }}">Standalone availability</label>{{ defaults_form.availability }}</div>
+                        <div class="field half"><label for="{{ defaults_form.currency_terms.id_for_label }}">Currency terms</label>{{ defaults_form.currency_terms }}</div>
+                        <div class="field half"><label for="{{ defaults_form.availability_terms.id_for_label }}">Availability terms</label>{{ defaults_form.availability_terms }}</div>
+                        <div class="field half"><label for="{{ defaults_form.validity_terms.id_for_label }}">Validity terms</label>{{ defaults_form.validity_terms }}</div>
+                        <div class="field half"><label for="{{ defaults_form.sale_terms.id_for_label }}">Terms of sale</label>{{ defaults_form.sale_terms }}</div>
+                        <div class="field"><label for="{{ defaults_form.closing_text.id_for_label }}">Closing paragraph</label>{{ defaults_form.closing_text }}</div>
+                        <div class="field half"><label for="{{ defaults_form.tax_note.id_for_label }}">Tax note</label>{{ defaults_form.tax_note }}</div>
+                        <div class="field half"><label for="{{ defaults_form.fob_note.id_for_label }}">F.O.B. / delivery note</label>{{ defaults_form.fob_note }}</div>
+                        <div class="field half"><label for="{{ defaults_form.signatory_name.id_for_label }}">Signatory name</label>{{ defaults_form.signatory_name }}</div>
+                        <div class="field half"><label for="{{ defaults_form.signatory_title.id_for_label }}">Signatory title</label>{{ defaults_form.signatory_title }}</div>
+                        <div class="field"><label for="{{ defaults_form.internal_notes.id_for_label }}">Internal notes</label>{{ defaults_form.internal_notes }}<span class="help">Never printed.</span></div>
+                    </div>
+                </div>
+                <div class="defaults-actions">
+                    <button class="button secondary" type="button" data-copy-quote-defaults>Copy values from this quote</button>
+                    <button class="button" type="submit">Save defaults</button>
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endif %}
+
     {% if quote_form.errors or line_formset.errors or line_formset.non_form_errors %}
     <div class="error-banner" role="alert"><strong>The quote needs attention.</strong> Review the highlighted fields and line items below.</div>
     {% endif %}
@@ -76,6 +135,15 @@
                             <label for="{{ quote_form.subject.id_for_label }}">Subject</label>
                             {{ quote_form.subject }}
                         </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-heading"><div><h2>Letterhead</h2><p>Adjust the company name, address, and phone for this quote. Leave a line blank to omit it.</p></div></div>
+                    <div class="field-grid">
+                        <div class="field third"><label for="{{ quote_form.company_name.id_for_label }}">Company name</label>{{ quote_form.company_name }}</div>
+                        <div class="field two-thirds"><label for="{{ quote_form.company_address.id_for_label }}">Address</label>{{ quote_form.company_address }}<span class="help">May contain more than one line.</span></div>
+                        <div class="field third"><label for="{{ quote_form.company_phone.id_for_label }}">Phone</label>{{ quote_form.company_phone }}</div>
                     </div>
                 </section>
 

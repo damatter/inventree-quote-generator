@@ -62,6 +62,12 @@ class Quote(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
     currency = models.CharField(max_length=3, default="CAD")
 
+    # NULL marks a legacy quote which should use the current plugin default. An
+    # empty string is an intentional choice to omit that letterhead line.
+    company_name = models.CharField(max_length=255, null=True, blank=True, default=None)
+    company_address = models.TextField(null=True, blank=True, default=None)
+    company_phone = models.CharField(max_length=255, null=True, blank=True, default=None)
+
     subject = models.CharField(max_length=255, blank=True, default="")
     intro_text = models.TextField(blank=True, default="")
     manufacturer = models.CharField(max_length=255, blank=True, default="")

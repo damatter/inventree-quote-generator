@@ -217,15 +217,23 @@ def _draw_letterhead(pdf: canvas.Canvas, document: QuoteDocument, page_number: i
         preserveAspectRatio=True,
         mask="auto",
     )
-    heading_size = _fit_size(document.company_name, "Helvetica-Bold", 18, 12, 395)
-    address_size = _fit_size(document.company_address, "Helvetica", 8.5, 6.5, 420)
-    phone_size = _fit_size(document.company_phone, "Helvetica", 8.5, 6.5, 420)
-    pdf.setFont("Helvetica-Bold", heading_size)
-    pdf.drawCentredString(340, 694, _safe_text(document.company_name))
-    pdf.setFont("Helvetica", address_size)
-    pdf.drawCentredString(340, 681, _safe_text(document.company_address))
-    pdf.setFont("Helvetica", phone_size)
-    pdf.drawCentredString(340, 670, _safe_text(document.company_phone))
+    if document.company_name:
+        heading_size = _fit_size(document.company_name, "Helvetica-Bold", 18, 12, 395)
+        pdf.setFont("Helvetica-Bold", heading_size)
+        pdf.drawCentredString(340, 694, _safe_text(document.company_name))
+
+    letterhead_y = 681
+    if document.company_address:
+        address_lines = _wrap(document.company_address, "Helvetica", 8.5, 420)
+        for address_line in address_lines:
+            address_size = _fit_size(address_line, "Helvetica", 8.5, 6.5, 420)
+            pdf.setFont("Helvetica", address_size)
+            pdf.drawCentredString(340, letterhead_y, _safe_text(address_line))
+            letterhead_y -= 10
+    if document.company_phone:
+        phone_size = _fit_size(document.company_phone, "Helvetica", 8.5, 6.5, 420)
+        pdf.setFont("Helvetica", phone_size)
+        pdf.drawCentredString(340, letterhead_y, _safe_text(document.company_phone))
     if page_number > 1:
         pdf.setFont("Helvetica", 8)
         pdf.setFillGray(0.42)
@@ -255,13 +263,36 @@ def _draw_lines(
     return y
 
 
+def _draw_price_headers(pdf: canvas.Canvas, y: float) -> float:
+    """Draw compact column labels for quote pricing."""
+
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.setFillGray(0.3)
+    pdf.drawString(54, y, "Qty. / description / part")
+    pdf.drawRightString(451, y, "Price ea.")
+    pdf.drawRightString(558, y, "Extended price")
+    pdf.setStrokeGray(0.78)
+    pdf.line(54, y - 4, 558, y - 4)
+    pdf.setStrokeGray(0)
+    pdf.setFillGray(0)
+    return y - 17
+
+
 def quote_document_from_model(quote, plugin) -> QuoteDocument:
     """Build a renderer-friendly snapshot without importing models at module load time."""
 
+    def letterhead_value(field_name: str, setting_key: str, fallback: str = "") -> str:
+        value = getattr(quote, field_name, None)
+        if value is None:
+            value = plugin.get_setting(setting_key)
+        return fallback if value is None else value
+
     settings = {
-        "company_name": plugin.get_setting("COMPANY_NAME") or "DI-COR Engineering",
-        "company_address": plugin.get_setting("COMPANY_ADDRESS") or "",
-        "company_phone": plugin.get_setting("COMPANY_PHONE") or "",
+        "company_name": letterhead_value(
+            "company_name", "COMPANY_NAME", "DI-COR Engineering"
+        ),
+        "company_address": letterhead_value("company_address", "COMPANY_ADDRESS"),
+        "company_phone": letterhead_value("company_phone", "COMPANY_PHONE"),
     }
     lines = tuple(
         QuoteDocumentLine(
@@ -355,12 +386,15 @@ def render_quote_pdf(document: QuoteDocument) -> bytes:
         y = _draw_lines(pdf, value_lines, 132, y, "Times-Roman", 11.5, 14)
     y -= 18
 
+    if document.lines:
+        y = _draw_price_headers(pdf, y)
+
     for item in document.lines:
         quantity = _decimal_text(item.quantity)
         quantity_unit = f"{quantity}{_safe_text(item.unit)}" if quantity else _safe_text(item.unit)
         segments = [value for value in (quantity_unit, item.description, item.part_number) if value]
         left_text = " - ".join(_safe_text(value) for value in segments)
-        wrapped = _wrap(left_text, "Times-Roman", 11.5, 370) if left_text else [""]
+        wrapped = _wrap(left_text, "Times-Roman", 11.5, 292) if left_text else [""]
         note_lines = _wrap(item.notes, "Times-Italic", 9.5, 430) if item.notes else []
         needed = max(
             22,
@@ -371,12 +405,17 @@ def render_quote_pdf(document: QuoteDocument) -> bytes:
         if y - needed < 205:
             page_number += 1
             y = _new_page(pdf, document, page_number)
+            y = _draw_price_headers(pdf, y)
 
         y = _draw_lines(pdf, wrapped, 54, y, "Times-Roman", 11.5, 14)
         price = _money_text(item.unit_price, item.currency or document.currency)
         if price:
             pdf.setFont("Times-Roman", 11.5)
-            pdf.drawRightString(505, y + 14, f"{price} ea.")
+            pdf.drawRightString(451, y + 14, price)
+        extended_price = _money_text(item.total, item.currency or document.currency)
+        if extended_price:
+            pdf.setFont("Times-Roman", 11.5)
+            pdf.drawRightString(558, y + 14, extended_price)
         if item.availability:
             pdf.setFont("Times-Italic", 9.5)
             pdf.setFillGray(0.35)

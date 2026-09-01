@@ -10,7 +10,6 @@ class QuoteLineItemInline(admin.TabularInline):
     extra = 0
 
 
-@admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
     list_display = ["quote_number", "customer_name", "issue_date", "status", "updated"]
     list_filter = ["status", "issue_date", "currency"]
@@ -18,6 +17,15 @@ class QuoteAdmin(admin.ModelAdmin):
     inlines = [QuoteLineItemInline]
 
 
-@admin.register(QuoteSequence)
 class QuoteSequenceAdmin(admin.ModelAdmin):
     list_display = ["year", "next_number"]
+
+
+# InvenTree reloads plugin admin modules while refreshing AppMixin plugins.
+# Register only missing models so repeated imports remain safe.
+for model, model_admin in (
+    (Quote, QuoteAdmin),
+    (QuoteSequence, QuoteSequenceAdmin),
+):
+    if not admin.site.is_registered(model):
+        admin.site.register(model, model_admin)

@@ -41,7 +41,7 @@ def package_asset(request, filename: str):
     }
     if filename not in content_types:
         raise Http404("Asset not found")
-    asset_path = Path(__file__).parent / "static" / "inventree_quote_generator" / filename
+    asset_path = Path(__file__).parent / "assets" / filename
     if not asset_path.is_file():
         raise Http404("Asset not found")
     response = HttpResponse(
@@ -148,7 +148,7 @@ def quote_editor(request, plugin, quote_id: int | None = None):
     @login_required
     def authenticated_view(request):
         _require_sales_role(request.user, "change")
-        from .forms import QuoteForm, QuoteLineItemFormSet
+        from .forms import QuoteDefaultsForm, QuoteForm, QuoteLineItemFormSet
         from .models import Quote
 
         if quote_id is None:
@@ -165,7 +165,30 @@ def quote_editor(request, plugin, quote_id: int | None = None):
             if part_id is not None:
                 initial_part = Part.objects.filter(pk=part_id, active=True).first()
 
-        if request.method == "POST":
+        can_manage_defaults = bool(request.user.is_superuser)
+        saving_defaults = (
+            request.method == "POST" and request.POST.get("form_action") == "save_defaults"
+        )
+        defaults_form = (
+            QuoteDefaultsForm(
+                request.POST if saving_defaults else None,
+                plugin=plugin,
+                prefix="defaults",
+            )
+            if can_manage_defaults
+            else None
+        )
+        if saving_defaults:
+            if not can_manage_defaults:
+                from django.core.exceptions import PermissionDenied
+
+                raise PermissionDenied("Only superusers can change quote defaults.")
+            if defaults_form.is_valid():
+                defaults_form.save(user=request.user)
+                messages.success(request, "Defaults for new quotes were saved.")
+                return redirect(request.path)
+
+        if request.method == "POST" and not saving_defaults:
             quote_form = QuoteForm(request.POST, instance=quote, plugin=plugin)
             customer = _requested_customer(request.POST)
             posted_currency = str(request.POST.get("currency", "CAD") or "CAD")
@@ -257,6 +280,8 @@ def quote_editor(request, plugin, quote_id: int | None = None):
             "site_js_url": f"{plugin.control_panel_url}assets/site.js?v={plugin.VERSION}",
             "quote": quote,
             "quote_form": quote_form,
+            "defaults_form": defaults_form,
+            "can_manage_defaults": can_manage_defaults,
             "line_formset": line_formset,
             "parts_catalog": parts_catalog,
             "customers_catalog": customers_catalog,

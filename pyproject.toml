@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-quote-generator"
-version = "0.1.0"
+version = "0.1.1"
 description = "Customer-priced, multi-line quote generation for InvenTree"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,6 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 [project.urls]
@@ -41,8 +42,8 @@ exclude = ["tests*"]
 [tool.setuptools.package-data]
 inventree_quote_generator = [
   "templates/**/*.html",
-  "static/**/*.css",
-  "static/**/*.js",
+  "assets/*.css",
+  "assets/*.js",
 ]
 
 [tool.pytest.ini_options]

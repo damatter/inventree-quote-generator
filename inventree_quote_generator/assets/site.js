@@ -56,13 +56,30 @@ function initializeQuoteEditor(page) {
         let priced = 0;
         let mixed = false;
         visibleLines(lineContainer).forEach((line) => {
-            const quantity = Number(field(line, "quantity")?.value);
-            const price = Number(field(line, "unit_price")?.value);
+            const quantityValue = field(line, "quantity")?.value ?? "";
+            const priceValue = field(line, "unit_price")?.value ?? "";
+            const quantity = quantityValue === "" ? Number.NaN : Number(quantityValue);
+            const price = priceValue === "" ? Number.NaN : Number(priceValue);
             const lineCurrency = String(field(line, "currency")?.value || currency).toUpperCase();
+            const extendedNode = line.querySelector("[data-line-extended]");
             if (Number.isFinite(quantity) && Number.isFinite(price)) {
+                const extended = quantity * price;
                 priced += 1;
-                total += quantity * price;
+                total += extended;
                 if (lineCurrency !== currency) mixed = true;
+                if (extendedNode) {
+                    try {
+                        extendedNode.textContent = new Intl.NumberFormat(undefined, {
+                            style: "currency",
+                            currency: lineCurrency,
+                            maximumFractionDigits: 2
+                        }).format(extended);
+                    } catch {
+                        extendedNode.textContent = `${lineCurrency} ${extended.toFixed(2)}`;
+                    }
+                }
+            } else if (extendedNode) {
+                extendedNode.textContent = "—";
             }
         });
         const countNode = page.querySelector("[data-priced-count]");
@@ -256,6 +273,33 @@ function initializeQuoteEditor(page) {
         } else {
             submitting = true;
         }
+    });
+
+    const defaultsForm = page.querySelector("[data-defaults-form]");
+    page.querySelector("[data-copy-quote-defaults]")?.addEventListener("click", () => {
+        if (!defaultsForm) return;
+        const names = [
+            "customer", "attention", "status", "currency", "subject", "company_name",
+            "company_address", "company_phone", "intro_text", "manufacturer", "item_name",
+            "model_name", "availability", "currency_terms", "availability_terms",
+            "validity_terms", "sale_terms", "closing_text", "tax_note", "fob_note",
+            "signatory_name", "signatory_title", "show_totals", "internal_notes"
+        ];
+        names.forEach((name) => {
+            const source = form.elements.namedItem(name);
+            const target = defaultsForm.elements.namedItem(`defaults-${name}`);
+            if (!source || !target) return;
+            if (source.type === "checkbox") target.checked = source.checked;
+            else target.value = source.value;
+        });
+        const issued = form.elements.namedItem("issue_date")?.value;
+        const validUntil = form.elements.namedItem("valid_until")?.value;
+        const daysTarget = defaultsForm.elements.namedItem("defaults-valid_days");
+        if (issued && validUntil && daysTarget) {
+            const days = Math.round((new Date(validUntil) - new Date(issued)) / 86400000);
+            if (Number.isFinite(days) && days >= 0) daysTarget.value = String(days);
+        }
+        defaultsForm.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
     const firstError = page.querySelector(".field-error, .error-banner");

@@ -37,7 +37,7 @@
             {{ line.price_mode }}
         </div>
         <div class="field price-field">
-            <label for="{{ line.unit_price.id_for_label }}">Unit price</label>
+            <label for="{{ line.unit_price.id_for_label }}">Price ea.</label>
             {{ line.unit_price }}
             {% for error in line.unit_price.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
         </div>
@@ -45,6 +45,11 @@
             <label for="{{ line.currency.id_for_label }}">Currency</label>
             {{ line.currency }}
             {% for error in line.currency.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field extended-price-field">
+            <label>Extended price</label>
+            <output class="line-extended" data-line-extended>—</output>
+            <span class="help">Quantity × price ea.</span>
         </div>
         <div class="field">
             <div class="price-status{% if line.instance.manual_price %} manual{% elif line.instance.price_source %} found{% endif %}" data-price-status>{% if line.instance.price_source %}{{ line.instance.price_source }}{% else %}Choose customer pricing or enter a manual price.{% endif %}</div>

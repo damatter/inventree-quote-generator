@@ -16,6 +16,102 @@ from part.models import Part
 from .models import Quote, QuoteLineItem
 from .pricing import resolve_customer_price
 
+DEFAULT_FORM_SETTINGS = {
+    "customer": "DEFAULT_CUSTOMER",
+    "attention": "DEFAULT_ATTENTION",
+    "status": "DEFAULT_STATUS",
+    "currency": "DEFAULT_CURRENCY",
+    "subject": "DEFAULT_SUBJECT",
+    "company_name": "COMPANY_NAME",
+    "company_address": "COMPANY_ADDRESS",
+    "company_phone": "COMPANY_PHONE",
+    "intro_text": "INTRO_TEXT",
+    "manufacturer": "DEFAULT_MANUFACTURER",
+    "item_name": "DEFAULT_ITEM_NAME",
+    "model_name": "DEFAULT_MODEL_NAME",
+    "availability": "DEFAULT_AVAILABILITY",
+    "currency_terms": "CURRENCY_TERMS",
+    "availability_terms": "AVAILABILITY_TERMS",
+    "validity_terms": "VALIDITY_TERMS",
+    "sale_terms": "SALE_TERMS",
+    "closing_text": "CLOSING_TEXT",
+    "tax_note": "TAX_NOTE",
+    "fob_note": "FOB_NOTE",
+    "signatory_name": "SIGNATORY_NAME",
+    "signatory_title": "SIGNATORY_TITLE",
+    "show_totals": "DEFAULT_SHOW_TOTALS",
+    "internal_notes": "DEFAULT_INTERNAL_NOTES",
+}
+
+
+def _model_setting_pk(value):
+    """Return a model-setting primary key across InvenTree versions."""
+
+    return getattr(value, "pk", value) or None
+
+
+class QuoteDefaultsForm(forms.Form):
+    """Global new-quote defaults editable from the quote workspace."""
+
+    customer = forms.ModelChoiceField(queryset=Company.objects.none(), required=False)
+    attention = forms.CharField(required=False, max_length=255)
+    status = forms.ChoiceField(choices=Quote.Status.choices, required=False)
+    currency = forms.CharField(required=False, max_length=3)
+    valid_days = forms.IntegerField(required=True, min_value=0, max_value=3650)
+    subject = forms.CharField(required=False, max_length=255)
+    company_name = forms.CharField(required=False, max_length=255)
+    company_address = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    company_phone = forms.CharField(required=False, max_length=255)
+    intro_text = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    manufacturer = forms.CharField(required=False, max_length=255)
+    item_name = forms.CharField(required=False, max_length=255)
+    model_name = forms.CharField(required=False, max_length=255)
+    availability = forms.CharField(required=False, max_length=255)
+    currency_terms = forms.CharField(required=False, max_length=255)
+    availability_terms = forms.CharField(required=False, max_length=500)
+    validity_terms = forms.CharField(required=False, max_length=255)
+    sale_terms = forms.CharField(required=False, max_length=255)
+    closing_text = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}))
+    tax_note = forms.CharField(required=False, max_length=255)
+    fob_note = forms.CharField(required=False, max_length=255)
+    signatory_name = forms.CharField(required=False, max_length=255)
+    signatory_title = forms.CharField(required=False, max_length=255)
+    show_totals = forms.BooleanField(required=False)
+    internal_notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, plugin, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plugin = plugin
+        self.fields["customer"].queryset = Company.objects.filter(
+            is_customer=True, active=True
+        ).order_by("name")
+        if not self.is_bound:
+            initial = {
+                name: plugin.get_setting(setting_key) or ""
+                for name, setting_key in DEFAULT_FORM_SETTINGS.items()
+            }
+            initial["customer"] = _model_setting_pk(plugin.get_setting("DEFAULT_CUSTOMER"))
+            initial["status"] = plugin.get_setting("DEFAULT_STATUS") or Quote.Status.DRAFT
+            initial["currency"] = plugin.get_setting("DEFAULT_CURRENCY") or "CAD"
+            initial["valid_days"] = plugin.get_setting("DEFAULT_VALID_DAYS") or 30
+            initial["show_totals"] = bool(plugin.get_setting("DEFAULT_SHOW_TOTALS"))
+            self.initial.update(initial)
+
+    def clean_currency(self):
+        return (self.cleaned_data.get("currency") or "CAD").upper()
+
+    def save(self, user=None):
+        """Persist every workspace default through SettingsMixin."""
+
+        for name, setting_key in DEFAULT_FORM_SETTINGS.items():
+            value = self.cleaned_data.get(name)
+            if name == "customer":
+                value = value.pk if value is not None else ""
+            self.plugin.set_setting(setting_key, value, user=user)
+        self.plugin.set_setting(
+            "DEFAULT_VALID_DAYS", self.cleaned_data["valid_days"], user=user
+        )
+
 
 class QuoteForm(forms.ModelForm):
     """Quote header, template wording, status, and output options."""
@@ -29,6 +125,9 @@ class QuoteForm(forms.ModelForm):
             "valid_until",
             "status",
             "currency",
+            "company_name",
+            "company_address",
+            "company_phone",
             "subject",
             "intro_text",
             "manufacturer",
@@ -50,6 +149,7 @@ class QuoteForm(forms.ModelForm):
         widgets = {
             "issue_date": forms.DateInput(attrs={"type": "date"}),
             "valid_until": forms.DateInput(attrs={"type": "date"}),
+            "company_address": forms.Textarea(attrs={"rows": 2}),
             "intro_text": forms.Textarea(attrs={"rows": 2}),
             "closing_text": forms.Textarea(attrs={"rows": 4}),
             "internal_notes": forms.Textarea(attrs={"rows": 3}),
@@ -75,13 +175,27 @@ class QuoteForm(forms.ModelForm):
             field.required = name in {"customer", "issue_date"}
 
         if not self.is_bound and not self.instance.pk and plugin is not None:
-            valid_days = int(plugin.get_setting("DEFAULT_VALID_DAYS") or 30)
+            try:
+                valid_days = int(plugin.get_setting("DEFAULT_VALID_DAYS") or 30)
+            except (TypeError, ValueError):
+                valid_days = 30
             issued = timezone.localdate()
             defaults = {
+                "customer": _model_setting_pk(plugin.get_setting("DEFAULT_CUSTOMER")),
+                "attention": plugin.get_setting("DEFAULT_ATTENTION") or "",
                 "issue_date": issued,
                 "valid_until": issued + timedelta(days=valid_days),
+                "status": plugin.get_setting("DEFAULT_STATUS") or Quote.Status.DRAFT,
                 "currency": plugin.get_setting("DEFAULT_CURRENCY") or "CAD",
+                "company_name": plugin.get_setting("COMPANY_NAME") or "",
+                "company_address": plugin.get_setting("COMPANY_ADDRESS") or "",
+                "company_phone": plugin.get_setting("COMPANY_PHONE") or "",
+                "subject": plugin.get_setting("DEFAULT_SUBJECT") or "",
                 "intro_text": plugin.get_setting("INTRO_TEXT") or "",
+                "manufacturer": plugin.get_setting("DEFAULT_MANUFACTURER") or "",
+                "item_name": plugin.get_setting("DEFAULT_ITEM_NAME") or "",
+                "model_name": plugin.get_setting("DEFAULT_MODEL_NAME") or "",
+                "availability": plugin.get_setting("DEFAULT_AVAILABILITY") or "",
                 "currency_terms": plugin.get_setting("CURRENCY_TERMS") or "",
                 "availability_terms": plugin.get_setting("AVAILABILITY_TERMS") or "",
                 "validity_terms": plugin.get_setting("VALIDITY_TERMS") or "",
@@ -91,6 +205,8 @@ class QuoteForm(forms.ModelForm):
                 "fob_note": plugin.get_setting("FOB_NOTE") or "",
                 "signatory_name": plugin.get_setting("SIGNATORY_NAME") or "",
                 "signatory_title": plugin.get_setting("SIGNATORY_TITLE") or "",
+                "show_totals": bool(plugin.get_setting("DEFAULT_SHOW_TOTALS")),
+                "internal_notes": plugin.get_setting("DEFAULT_INTERNAL_NOTES") or "",
             }
             if initial_part is not None:
                 defaults.update(

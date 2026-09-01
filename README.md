@@ -15,6 +15,7 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 - A responsive quote site for searching, creating, editing, duplicating, previewing,
   downloading, and deleting quotes.
 - Any number of line items per quote, including custom lines with no InvenTree part.
+- Clearly labeled price-each and calculated extended-price values for every line.
 - Automatic customer- and quantity-specific pricing from `inventree-customer-pricing`.
 - A visible manual-price fallback when the selected customer/part/quantity has no rule.
 - Optional blank prices and optional blank presentation fields.
@@ -25,7 +26,7 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 ## Compatibility
 
 - InvenTree `1.3.2` through `1.3.x`
-- Python `3.11` or newer
+- Python `3.11` or newer, including Python `3.14`
 - The React-based InvenTree user interface
 - `inventree-customer-pricing` `0.2.0` for automatic customer price resolution
 
@@ -38,7 +39,7 @@ In **Admin Center → Plugins → Install Plugin**, enter these values exactly:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.0
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.1
 Version:     (leave blank)
 ```
 
@@ -57,11 +58,11 @@ is restored after container replacement.
 ### Update to a newer release
 
 Return to **Admin Center → Plugins** and edit or reinstall the package using the same values,
-changing only the release tag at the end of **Source URL**. For example, to update to `0.1.1`:
+changing only the release tag at the end of **Source URL**. For example, to update to `0.1.2`:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.1
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.2
 Version:     (leave blank)
 ```
 
@@ -72,7 +73,7 @@ version is already pinned in **Source URL**.
 For installations managed directly with `plugins.txt`, use:
 
 ```text
-inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.1.0
+inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.1.1
 ```
 
 Update by changing the tag after the final `@`, then run `invoke plugins` (or the normal
@@ -100,6 +101,13 @@ Admin Center plugin settings contain the defaults used for new quotes:
 - currency and validity period;
 - introduction, four Terms lines, closing paragraph, tax note, and F.O.B. note;
 - signatory name and optional title.
+
+Superusers can also edit every reusable default from the collapsible **Defaults for new
+quotes** panel on the quote editor. Each saved quote snapshots its own company name,
+letterhead address, and phone, so changing defaults does not rewrite older quotes.
+
+Browser assets are served directly by the plugin rather than copied through Django's shared
+static-file collection step. This avoids worker startup races in multi-process containers.
 
 All of those values remain editable on each quote, and all except the selected customer can
 be blank.

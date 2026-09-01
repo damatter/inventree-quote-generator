@@ -75,3 +75,10 @@ def test_entry_point_imports_with_only_discovery_dependencies(monkeypatch):
     assert "part.models" not in sys.modules
     assert "inventree_quote_generator.models" not in sys.modules
     assert "inventree_quote_generator.views" not in sys.modules
+
+
+def test_admin_registration_is_safe_to_reload():
+    source = (PACKAGE_ROOT / "admin.py").read_text(encoding="utf-8")
+
+    assert "@admin.register" not in source
+    assert "admin.site.is_registered(model)" in source

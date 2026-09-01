@@ -42,6 +42,31 @@ class QuoteGeneratorPlugin(
             "description": _("Phone line shown in the quote letterhead."),
             "default": "PHONE: (613) 392-7302",
         },
+        "DEFAULT_CUSTOMER": {
+            "name": _("Default customer"),
+            "description": _("Optional customer selected on each new quote."),
+            "model": "company.company",
+            "model_filters": {"is_customer": True, "active": True},
+            "required": False,
+        },
+        "DEFAULT_ATTENTION": {
+            "name": _("Default attention"),
+            "description": _("Optional attention line for new quotes."),
+            "default": "",
+        },
+        "DEFAULT_STATUS": {
+            "name": _("Default quote status"),
+            "description": _("Workflow status selected on new quotes."),
+            "choices": [
+                ("draft", _("Draft")),
+                ("ready", _("Ready")),
+                ("sent", _("Sent")),
+                ("accepted", _("Accepted")),
+                ("declined", _("Declined")),
+                ("expired", _("Expired")),
+            ],
+            "default": "draft",
+        },
         "DEFAULT_CURRENCY": {
             "name": _("Default quote currency"),
             "description": _("Three-letter currency code used for new quotes."),
@@ -52,6 +77,31 @@ class QuoteGeneratorPlugin(
             "description": _("Used to prefill the valid-until date on new quotes."),
             "default": 30,
             "validator": int,
+        },
+        "DEFAULT_SUBJECT": {
+            "name": _("Default subject"),
+            "description": _("Subject used when a part does not supply one."),
+            "default": "",
+        },
+        "DEFAULT_MANUFACTURER": {
+            "name": _("Default manufacturer"),
+            "description": _("Manufacturer shown on new quotes."),
+            "default": "",
+        },
+        "DEFAULT_ITEM_NAME": {
+            "name": _("Default item name"),
+            "description": _("Item wording shown on new quotes."),
+            "default": "",
+        },
+        "DEFAULT_MODEL_NAME": {
+            "name": _("Default model"),
+            "description": _("Model wording shown on new quotes."),
+            "default": "",
+        },
+        "DEFAULT_AVAILABILITY": {
+            "name": _("Default standalone availability"),
+            "description": _("Optional availability line for new quotes."),
+            "default": "",
         },
         "INTRO_TEXT": {
             "name": _("Default introduction"),
@@ -110,6 +160,17 @@ class QuoteGeneratorPlugin(
         "SIGNATORY_TITLE": {
             "name": _("Default signatory title"),
             "description": _("Optional title printed below the signatory name."),
+            "default": "",
+        },
+        "DEFAULT_SHOW_TOTALS": {
+            "name": _("Show totals by default"),
+            "description": _("Select the PDF subtotal option on new quotes."),
+            "default": False,
+            "validator": bool,
+        },
+        "DEFAULT_INTERNAL_NOTES": {
+            "name": _("Default internal notes"),
+            "description": _("Private notes added to new quotes; never printed."),
             "default": "",
         },
     }
