@@ -1,0 +1,61 @@
+<article class="line-card" data-line-form>
+    {{ line.id }}
+    <span class="delete-check">{{ line.DELETE }}</span>
+    <div class="line-head">
+        <span class="line-title">Line <span data-line-number>1</span></span>
+        <div class="line-tools"><button class="icon-button" type="button" data-remove-line>Remove</button></div>
+    </div>
+    {% if line.non_field_errors %}<div class="field-error">{{ line.non_field_errors|join:", " }}</div>{% endif %}
+    <div class="line-grid">
+        <div class="field part-field">
+            <label for="{{ line.part.id_for_label }}">InvenTree part</label>
+            {{ line.part }}
+            {% for error in line.part.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field qty-field">
+            <label for="{{ line.quantity.id_for_label }}">Quantity</label>
+            {{ line.quantity }}
+            {% for error in line.quantity.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field unit-field">
+            <label for="{{ line.unit.id_for_label }}">Unit</label>
+            {{ line.unit }}
+            {% for error in line.unit.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field description-field">
+            <label for="{{ line.description.id_for_label }}">Description</label>
+            {{ line.description }}
+            {% for error in line.description.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field part-number-field">
+            <label for="{{ line.part_number.id_for_label }}">Part number</label>
+            {{ line.part_number }}
+            {% for error in line.part_number.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field price-mode-field">
+            <label for="{{ line.price_mode.id_for_label }}">Price source</label>
+            {{ line.price_mode }}
+        </div>
+        <div class="field price-field">
+            <label for="{{ line.unit_price.id_for_label }}">Unit price</label>
+            {{ line.unit_price }}
+            {% for error in line.unit_price.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field currency-field">
+            <label for="{{ line.currency.id_for_label }}">Currency</label>
+            {{ line.currency }}
+            {% for error in line.currency.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="field">
+            <div class="price-status{% if line.instance.manual_price %} manual{% elif line.instance.price_source %} found{% endif %}" data-price-status>{% if line.instance.price_source %}{{ line.instance.price_source }}{% else %}Choose customer pricing or enter a manual price.{% endif %}</div>
+        </div>
+        <div class="field half">
+            <label for="{{ line.availability.id_for_label }}">Line availability <span class="help">Optional</span></label>
+            {{ line.availability }}
+        </div>
+        <div class="field half">
+            <label for="{{ line.notes.id_for_label }}">Line notes <span class="help">Optional; shown below the item when used</span></label>
+            {{ line.notes }}
+        </div>
+    </div>
+</article>

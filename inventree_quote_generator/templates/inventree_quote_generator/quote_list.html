@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quotes | {{ plugin_title }}</title>
+    <link rel="stylesheet" href="{{ site_css_url }}">
+</head>
+<body>
+<main class="shell" data-quote-list-page>
+    <header class="topbar">
+        <div class="brand"><strong>{{ plugin_title }}</strong><span class="version">v{{ plugin_version }}</span></div>
+        <a class="back" href="/web/">Back to InvenTree</a>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+        <div>
+            <h1 id="page-title">Customer Quotes</h1>
+            <p>Create multi-line quote letters, use customer quantity pricing automatically, and keep every revision easy to find.</p>
+        </div>
+        {% if can_change %}
+        <div class="hero-actions"><a class="button" href="{{ create_url }}">Create quote</a></div>
+        {% else %}
+        <div class="summary" aria-label="Quote totals">
+            <div class="summary-card"><span>Total</span><strong>{{ totals.total }}</strong></div>
+            <div class="summary-card"><span>Drafts</span><strong>{{ totals.drafts }}</strong></div>
+            <div class="summary-card"><span>Open</span><strong>{{ totals.active }}</strong></div>
+        </div>
+        {% endif %}
+    </section>
+
+    {% if messages %}
+    <section class="messages" aria-live="polite">
+        {% for message in messages %}<div class="message{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}
+    </section>
+    {% endif %}
+
+    <form class="filters" method="get" action="{{ control_panel_url }}">
+        <div>
+            <label for="quote-search">Search quotes</label>
+            <input id="quote-search" type="search" name="q" value="{{ query }}" placeholder="Quote number, customer, subject, part...">
+        </div>
+        <div>
+            <label for="status-filter">Status</label>
+            <select id="status-filter" name="status">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}<option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button class="button" type="submit">Apply</button>
+            <a class="button secondary" href="{{ control_panel_url }}">Clear</a>
+        </div>
+    </form>
+
+    {% if quotes %}
+    <section class="quote-list" aria-label="Quotes">
+        {% for quote in quotes %}
+        <article class="card quote-row">
+            <div>
+                {% if can_change %}<a class="quote-number" href="{{ control_panel_url }}{{ quote.pk }}/edit/">{{ quote.quote_number }}</a>{% else %}<span class="quote-number">{{ quote.quote_number }}</span>{% endif %}
+                <div class="quote-meta">{{ quote.issue_date|date:"F j, Y" }} · {{ quote.line_count }} line{{ quote.line_count|pluralize }}</div>
+            </div>
+            <div class="quote-customer">{{ quote.customer_name|default:quote.customer.name }}</div>
+            <div>
+                <div class="quote-subject">{{ quote.subject|default:"No subject" }}</div>
+                {% if quote.valid_until %}<div class="quote-meta">Valid until {{ quote.valid_until|date:"F j, Y" }}</div>{% endif %}
+            </div>
+            <span class="status status-{{ quote.status }}">{{ quote.get_status_display }}</span>
+            <div class="quote-actions">
+                {% if can_change %}<a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/edit/">Edit</a>{% endif %}
+                <a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/" target="_blank" rel="noopener">Preview</a>
+                <a class="button small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/?download=1">Download</a>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+    {% else %}
+    <section class="empty">
+        <h2>No quotes found</h2>
+        <p>{% if query or status_filter %}Try clearing the filters.{% else %}Create the first customer quote when you are ready.{% endif %}</p>
+        {% if can_change %}<a class="button" href="{{ create_url }}">Create quote</a>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Quote pages">
+        {% if page_obj.has_previous %}<a class="button secondary small" href="?q={{ query|urlencode }}&amp;status={{ status_filter|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a class="button secondary small" href="?q={{ query|urlencode }}&amp;status={{ status_filter|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+    {% endif %}
+</main>
+<script type="module" src="{{ site_js_url }}"></script>
+</body>
+</html>

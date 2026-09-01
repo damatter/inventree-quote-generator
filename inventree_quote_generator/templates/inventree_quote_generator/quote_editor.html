@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if quote.pk %}{{ quote.quote_number }}{% else %}New Quote{% endif %} | {{ plugin_title }}</title>
+    <link rel="stylesheet" href="{{ site_css_url }}">
+</head>
+<body>
+<main class="shell" data-quote-editor-page>
+    <header class="topbar">
+        <div class="brand"><strong>{{ plugin_title }}</strong><span class="version">v{{ plugin_version }}</span></div>
+        <a class="back" href="{{ control_panel_url }}">Back to all quotes</a>
+    </header>
+
+    <section class="hero compact" aria-labelledby="page-title">
+        <div>
+            <h1 id="page-title">{% if quote.pk %}{{ quote.quote_number }}{% else %}New Customer Quote{% endif %}</h1>
+            <p>{% if quote.pk %}Edit the quote, refresh customer pricing, or generate the current PDF.{% else %}Choose a customer, add one or more lines, and let customer pricing fill what it can.{% endif %}</p>
+        </div>
+        {% if quote.pk %}
+        <div class="hero-actions">
+            <a class="button secondary" href="{{ pdf_url }}" target="_blank" rel="noopener">Preview PDF</a>
+            <a class="button" href="{{ pdf_url }}?download=1">Download PDF</a>
+        </div>
+        {% endif %}
+    </section>
+
+    {% if messages %}
+    <section class="messages" aria-live="polite">
+        {% for message in messages %}<div class="message{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}
+    </section>
+    {% endif %}
+
+    {% if quote_form.errors or line_formset.errors or line_formset.non_form_errors %}
+    <div class="error-banner" role="alert"><strong>The quote needs attention.</strong> Review the highlighted fields and line items below.</div>
+    {% endif %}
+
+    <form method="post" data-quote-form data-price-api="{{ price_api_url }}" data-quote-id="{{ quote.pk|default:'new' }}">
+        {% csrf_token %}
+        <div class="editor-grid">
+            <div class="editor-main">
+                <section class="card">
+                    <div class="card-heading"><div><h2>Customer and quote</h2><p>Only the customer is required. Leave any presentation field blank when it does not apply.</p></div></div>
+                    {% if quote_form.non_field_errors %}<div class="field-error">{{ quote_form.non_field_errors|join:", " }}</div>{% endif %}
+                    <div class="field-grid">
+                        <div class="field two-thirds">
+                            <label for="{{ quote_form.customer.id_for_label }}">Customer</label>
+                            {{ quote_form.customer }}
+                            {% for error in quote_form.customer.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="field third">
+                            <label for="{{ quote_form.attention.id_for_label }}">Attention <span class="help">Optional contact name</span></label>
+                            {{ quote_form.attention }}
+                        </div>
+                        <div class="field quarter">
+                            <label for="{{ quote_form.issue_date.id_for_label }}">Issue date</label>
+                            {{ quote_form.issue_date }}
+                            {% for error in quote_form.issue_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="field quarter">
+                            <label for="{{ quote_form.valid_until.id_for_label }}">Valid until</label>
+                            {{ quote_form.valid_until }}
+                            {% for error in quote_form.valid_until.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="field quarter">
+                            <label for="{{ quote_form.status.id_for_label }}">Status</label>
+                            {{ quote_form.status }}
+                        </div>
+                        <div class="field quarter">
+                            <label for="{{ quote_form.currency.id_for_label }}">Quote currency</label>
+                            {{ quote_form.currency }}
+                            {% for error in quote_form.currency.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="field">
+                            <label for="{{ quote_form.subject.id_for_label }}">Subject</label>
+                            {{ quote_form.subject }}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-heading"><div><h2>Line items</h2><p>Select InvenTree parts for automatic customer quantity pricing, or create completely custom lines.</p></div><button class="button secondary small" type="button" data-add-line>Add line item</button></div>
+                    {{ line_formset.management_form }}
+                    {% if line_formset.non_form_errors %}<div class="error-banner">{{ line_formset.non_form_errors|join:", " }}</div>{% endif %}
+                    <div class="line-items" data-line-items>
+                        {% for line in line_formset.forms %}{% include "inventree_quote_generator/_line_item.html" with line=line %}{% endfor %}
+                    </div>
+                    <template data-empty-line-template>{% include "inventree_quote_generator/_line_item.html" with line=line_formset.empty_form %}</template>
+                    <div style="margin-top: 13px"><button class="button secondary" type="button" data-add-line>Add another line</button></div>
+                </section>
+
+                <section class="card">
+                    <div class="card-heading"><div><h2>Quote presentation</h2><p>These fields map directly to the supplied letter template. Every one is optional.</p></div></div>
+                    <div class="field-grid">
+                        <div class="field"><label for="{{ quote_form.intro_text.id_for_label }}">Opening paragraph</label>{{ quote_form.intro_text }}</div>
+                        <div class="field third"><label for="{{ quote_form.manufacturer.id_for_label }}">Manufacturer</label>{{ quote_form.manufacturer }}</div>
+                        <div class="field third"><label for="{{ quote_form.item_name.id_for_label }}">Item name</label>{{ quote_form.item_name }}</div>
+                        <div class="field third"><label for="{{ quote_form.model_name.id_for_label }}">Model</label>{{ quote_form.model_name }}</div>
+                        <div class="field"><label for="{{ quote_form.availability.id_for_label }}">Standalone availability line</label>{{ quote_form.availability }}</div>
+                    </div>
+                    <details class="template-details" style="margin-top: 15px">
+                        <summary>Terms and closing wording</summary>
+                        <div class="template-body field-grid">
+                            <div class="field half"><label for="{{ quote_form.currency_terms.id_for_label }}">Currency terms</label>{{ quote_form.currency_terms }}</div>
+                            <div class="field half"><label for="{{ quote_form.availability_terms.id_for_label }}">Availability terms</label>{{ quote_form.availability_terms }}</div>
+                            <div class="field half"><label for="{{ quote_form.validity_terms.id_for_label }}">Validity terms</label>{{ quote_form.validity_terms }}</div>
+                            <div class="field half"><label for="{{ quote_form.sale_terms.id_for_label }}">Terms of sale line</label>{{ quote_form.sale_terms }}</div>
+                            <div class="field"><label for="{{ quote_form.closing_text.id_for_label }}">Closing paragraph</label>{{ quote_form.closing_text }}</div>
+                            <div class="field half"><label for="{{ quote_form.tax_note.id_for_label }}">Tax note</label>{{ quote_form.tax_note }}</div>
+                            <div class="field half"><label for="{{ quote_form.fob_note.id_for_label }}">F.O.B. / delivery note</label>{{ quote_form.fob_note }}</div>
+                            <div class="field half"><label for="{{ quote_form.signatory_name.id_for_label }}">Signatory name</label>{{ quote_form.signatory_name }}</div>
+                            <div class="field half"><label for="{{ quote_form.signatory_title.id_for_label }}">Signatory title</label>{{ quote_form.signatory_title }}</div>
+                        </div>
+                    </details>
+                </section>
+            </div>
+
+            <aside class="editor-side">
+                <section class="card sticky-actions">
+                    <div class="card-heading"><div><h2>Finish</h2><p>Automatic prices are confirmed again when you save.</p></div></div>
+                    <div class="totals-box" aria-live="polite">
+                        <div class="total-row"><span>Priced lines</span><strong data-priced-count>0</strong></div>
+                        <div class="total-row"><span>Working subtotal</span><strong data-working-total>—</strong></div>
+                    </div>
+                    <div class="field" style="margin-top: 14px">
+                        <div class="check-row">{{ quote_form.show_totals }}<div class="check-copy"><label for="{{ quote_form.show_totals.id_for_label }}">Show subtotal on PDF</label><span class="help">Only displayed when priced lines use the quote currency.</span></div></div>
+                    </div>
+                    <div class="field" style="margin-top: 14px">
+                        <label for="{{ quote_form.internal_notes.id_for_label }}">Internal notes</label>
+                        {{ quote_form.internal_notes }}
+                        <span class="help">Never shown on the generated quote.</span>
+                    </div>
+                    <div class="action-stack" style="margin-top: 15px">
+                        <button class="button" type="submit" name="next" value="stay">Save quote</button>
+                        <button class="button secondary" type="submit" name="next" value="preview">Save and preview PDF</button>
+                    </div>
+                    <p class="muted-note">Tip: press Ctrl+S or Cmd+S to save without leaving the editor.</p>
+                    {% if quote.pk %}
+                    <hr style="border:0;border-top:1px solid #dce4e8;margin:16px 0">
+                    <div class="action-stack">
+                        <button class="button secondary" type="submit" form="duplicate-quote-form">Duplicate as draft</button>
+                        <button class="button danger" type="submit" form="delete-quote-form" data-confirm-delete>Delete quote</button>
+                    </div>
+                    {% endif %}
+                </section>
+            </aside>
+        </div>
+    </form>
+
+    {% if quote.pk %}
+    <form id="duplicate-quote-form" method="post" action="{{ duplicate_url }}">{% csrf_token %}</form>
+    <form id="delete-quote-form" method="post" action="{{ delete_url }}">{% csrf_token %}</form>
+    {% endif %}
+
+    {{ parts_catalog|json_script:"quote-parts-catalog" }}
+    {{ customers_catalog|json_script:"quote-customers-catalog" }}
+</main>
+<script type="module" src="{{ site_js_url }}"></script>
+</body>
+</html>

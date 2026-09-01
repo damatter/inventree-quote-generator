@@ -1,0 +1,3 @@
+recursive-include inventree_quote_generator/templates *.html
+recursive-include inventree_quote_generator/static *.css *.js
+include LICENSE

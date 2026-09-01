@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventree-quote-generator"
+version = "0.1.0"
+description = "Customer-priced, multi-line quote generation for InvenTree"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Matt Dick" }]
+dependencies = ["reportlab>=4.2,<5"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: InvenTree",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/damatter/inventree-quote-generator"
+Issues = "https://github.com/damatter/inventree-quote-generator/issues"
+
+[project.entry-points.inventree_plugins]
+QuoteGeneratorPlugin = "inventree_quote_generator.core:QuoteGeneratorPlugin"
+
+[project.optional-dependencies]
+dev = ["build>=1.2", "pytest>=8", "pypdf>=5", "ruff>=0.12"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["inventree_quote_generator*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+inventree_quote_generator = [
+  "templates/**/*.html",
+  "static/**/*.css",
+  "static/**/*.js",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["inventree_quote_generator/migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
