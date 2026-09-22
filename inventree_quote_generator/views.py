@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from uuid import uuid4
+
+QUOTE_SUBMISSION_SESSION_KEY = "quote_generator_submissions"
 
 
 def _has_sales_role(user, action: str) -> bool:
@@ -55,15 +58,44 @@ def package_asset(request, filename: str):
 def quote_list(request, plugin):
     """Show filterable quote history and workspace-level actions."""
 
+    from django.contrib import messages
     from django.contrib.auth.decorators import login_required
     from django.core.paginator import Paginator
     from django.db.models import Count, Q
-    from django.shortcuts import render
+    from django.shortcuts import redirect, render
 
     @login_required
     def authenticated_view(request):
         _require_sales_role(request.user, "view")
+        from .forms import QuoteDefaultsForm
         from .models import Quote
+
+        can_manage_defaults = bool(request.user.is_superuser)
+        saving_defaults = (
+            request.method == "POST" and request.POST.get("form_action") == "save_defaults"
+        )
+        defaults_form = (
+            QuoteDefaultsForm(
+                request.POST if saving_defaults else None,
+                plugin=plugin,
+                prefix="defaults",
+            )
+            if can_manage_defaults
+            else None
+        )
+        if request.method == "POST":
+            if not saving_defaults:
+                from django.core.exceptions import PermissionDenied
+
+                raise PermissionDenied("Unsupported quote workspace action.")
+            if not can_manage_defaults:
+                from django.core.exceptions import PermissionDenied
+
+                raise PermissionDenied("Only superusers can change quote defaults.")
+            if defaults_form.is_valid():
+                defaults_form.save(user=request.user)
+                messages.success(request, "Defaults for new quotes were saved.")
+                return redirect(plugin.control_panel_url)
 
         query = str(request.GET.get("q", "") or "").strip()[:200]
         status_filter = str(request.GET.get("status", "") or "")
@@ -86,6 +118,19 @@ def quote_list(request, plugin):
             quotes = quotes.filter(status=status_filter)
 
         page_obj = Paginator(quotes, 30).get_page(_positive_int(request.GET.get("page")) or 1)
+        sales_orders = {}
+        sales_order_ids = [
+            quote.sales_order_id for quote in page_obj.object_list if quote.sales_order_id
+        ]
+        if sales_order_ids:
+            from order.models import SalesOrder
+
+            sales_orders = SalesOrder.objects.in_bulk(sales_order_ids)
+        for quote in page_obj.object_list:
+            quote.linked_sales_order = sales_orders.get(quote.sales_order_id)
+            quote.sales_order_url = (
+                quote.linked_sales_order.get_absolute_url() if quote.linked_sales_order else ""
+            )
         totals = Quote.objects.aggregate(
             total=Count("pk"),
             drafts=Count("pk", filter=Q(status=Quote.Status.DRAFT)),
@@ -105,6 +150,8 @@ def quote_list(request, plugin):
             "status_choices": Quote.Status.choices,
             "totals": totals,
             "can_change": _has_sales_role(request.user, "change"),
+            "can_manage_defaults": can_manage_defaults,
+            "defaults_form": defaults_form,
         }
         response = render(request, "inventree_quote_generator/quote_list.html", context)
         response["Cache-Control"] = "no-store"
@@ -148,7 +195,7 @@ def quote_editor(request, plugin, quote_id: int | None = None):
     @login_required
     def authenticated_view(request):
         _require_sales_role(request.user, "change")
-        from .forms import QuoteDefaultsForm, QuoteForm, QuoteLineItemFormSet
+        from .forms import QuoteForm, QuoteLineItemFormSet
         from .models import Quote
 
         if quote_id is None:
@@ -165,30 +212,18 @@ def quote_editor(request, plugin, quote_id: int | None = None):
             if part_id is not None:
                 initial_part = Part.objects.filter(pk=part_id, active=True).first()
 
-        can_manage_defaults = bool(request.user.is_superuser)
-        saving_defaults = (
-            request.method == "POST" and request.POST.get("form_action") == "save_defaults"
-        )
-        defaults_form = (
-            QuoteDefaultsForm(
-                request.POST if saving_defaults else None,
-                plugin=plugin,
-                prefix="defaults",
-            )
-            if can_manage_defaults
-            else None
-        )
-        if saving_defaults:
-            if not can_manage_defaults:
-                from django.core.exceptions import PermissionDenied
+        submission_token = str(request.POST.get("submission_token", "") or "")
+        if quote_id is None and request.method == "POST" and submission_token:
+            submissions = request.session.get(QUOTE_SUBMISSION_SESSION_KEY, {})
+            saved_quote_id = _positive_int(submissions.get(submission_token))
+            if saved_quote_id and Quote.objects.filter(pk=saved_quote_id).exists():
+                messages.info(
+                    request,
+                    "That new quote was already saved. You are viewing the existing quote.",
+                )
+                return redirect(f"{plugin.control_panel_url}{saved_quote_id}/edit/")
 
-                raise PermissionDenied("Only superusers can change quote defaults.")
-            if defaults_form.is_valid():
-                defaults_form.save(user=request.user)
-                messages.success(request, "Defaults for new quotes were saved.")
-                return redirect(request.path)
-
-        if request.method == "POST" and not saving_defaults:
+        if request.method == "POST":
             quote_form = QuoteForm(request.POST, instance=quote, plugin=plugin)
             customer = _requested_customer(request.POST)
             posted_currency = str(request.POST.get("currency", "CAD") or "CAD")
@@ -239,8 +274,12 @@ def quote_editor(request, plugin, quote_id: int | None = None):
                             line.save()
 
                     messages.success(request, f"{saved_quote.quote_number} saved.")
-                    if request.POST.get("next") == "preview":
-                        return redirect(f"{plugin.control_panel_url}{saved_quote.pk}/pdf/")
+                    if quote_id is None and submission_token:
+                        submissions = request.session.get(QUOTE_SUBMISSION_SESSION_KEY, {})
+                        submissions[submission_token] = saved_quote.pk
+                        request.session[QUOTE_SUBMISSION_SESSION_KEY] = dict(
+                            list(submissions.items())[-20:]
+                        )
                     return redirect(f"{plugin.control_panel_url}{saved_quote.pk}/edit/?saved=1")
             else:
                 line_formset = QuoteLineItemFormSet(
@@ -250,6 +289,7 @@ def quote_editor(request, plugin, quote_id: int | None = None):
                     form_kwargs={"customer": customer, "quote_currency": posted_currency},
                 )
         else:
+            submission_token = uuid4().hex if quote_id is None else ""
             quote_form = QuoteForm(instance=quote, plugin=plugin, initial_part=initial_part)
             initial = [_line_initial(initial_part)] if initial_part is not None else None
             line_formset = QuoteLineItemFormSet(
@@ -280,8 +320,7 @@ def quote_editor(request, plugin, quote_id: int | None = None):
             "site_js_url": f"{plugin.control_panel_url}assets/site.js?v={plugin.VERSION}",
             "quote": quote,
             "quote_form": quote_form,
-            "defaults_form": defaults_form,
-            "can_manage_defaults": can_manage_defaults,
+            "submission_token": submission_token,
             "line_formset": line_formset,
             "customers_catalog": customers_catalog,
             "price_api_url": f"{plugin.control_panel_url}api/resolve-price/",
@@ -304,6 +343,35 @@ def quote_editor(request, plugin, quote_id: int | None = None):
     return authenticated_view(request)
 
 
+def update_quote_status(request, plugin, quote_id: int):
+    """Update a quote's workflow status from the main workspace."""
+
+    from django.contrib import messages
+    from django.contrib.auth.decorators import login_required
+    from django.shortcuts import get_object_or_404, redirect
+    from django.views.decorators.http import require_POST
+
+    @login_required
+    @require_POST
+    def authenticated_view(request):
+        _require_sales_role(request.user, "change")
+        from .models import Quote
+
+        quote = get_object_or_404(Quote, pk=quote_id)
+        status = str(request.POST.get("status", "") or "")
+        if status not in Quote.Status.values:
+            messages.error(request, "Choose a valid quote status.")
+            return redirect(plugin.control_panel_url)
+        if quote.status != status:
+            quote.status = status
+            quote.updated_by = request.user
+            quote.save(update_fields=["status", "updated_by", "updated"])
+            messages.success(request, f"{quote.quote_number} status updated.")
+        return redirect(plugin.control_panel_url)
+
+    return authenticated_view(request)
+
+
 def create_sales_order(request, plugin, quote_id: int):
     """Create a pending native InvenTree sales order from an accepted quote."""
 
@@ -321,11 +389,29 @@ def create_sales_order(request, plugin, quote_id: int):
         from .workflow import convert_quote_to_sales_order
 
         quote = get_object_or_404(Quote, pk=quote_id)
+        return_to_list = request.POST.get("return_to") == "list"
+        requested_status = str(request.POST.get("status", "") or "")
+        if requested_status:
+            if requested_status not in Quote.Status.values:
+                messages.error(request, "Choose a valid quote status.")
+                return redirect(
+                    plugin.control_panel_url
+                    if return_to_list
+                    else f"{plugin.control_panel_url}{quote.pk}/edit/"
+                )
+            if quote.status != requested_status:
+                quote.status = requested_status
+                quote.updated_by = request.user
+                quote.save(update_fields=["status", "updated_by", "updated"])
         try:
             sales_order, created = convert_quote_to_sales_order(quote, request.user)
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
-            return redirect(f"{plugin.control_panel_url}{quote.pk}/edit/")
+            return redirect(
+                plugin.control_panel_url
+                if return_to_list
+                else f"{plugin.control_panel_url}{quote.pk}/edit/"
+            )
 
         if created:
             messages.success(
@@ -526,9 +612,7 @@ def resolve_price_api(request):
             {
                 "found": result.found,
                 "unit_price": (
-                    format(result.unit_price, "f")
-                    if result.unit_price is not None
-                    else None
+                    format(result.unit_price, "f") if result.unit_price is not None else None
                 ),
                 "currency": result.currency,
                 "price_break_id": result.price_break_id,
@@ -560,9 +644,7 @@ def part_search_api(request):
         parts = (
             Part.objects.filter(active=True)
             .filter(
-                Q(IPN__icontains=query)
-                | Q(name__icontains=query)
-                | Q(description__icontains=query)
+                Q(IPN__icontains=query) | Q(name__icontains=query) | Q(description__icontains=query)
             )
             .order_by("IPN", "name")[:25]
         )

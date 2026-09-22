@@ -204,6 +204,11 @@ class QuoteGeneratorPlugin(
             ),
             path("new/", self.quote_editor_view, name="quote-create"),
             path("<int:quote_id>/edit/", self.quote_editor_view, name="quote-edit"),
+            path(
+                "<int:quote_id>/status/",
+                self.quote_status_view,
+                name="quote-status",
+            ),
             path("<int:quote_id>/pdf/", self.quote_pdf_view, name="quote-pdf"),
             path(
                 "<int:quote_id>/create-sales-order/",
@@ -234,6 +239,11 @@ class QuoteGeneratorPlugin(
         from .views import quote_pdf
 
         return quote_pdf(request, self, quote_id)
+
+    def quote_status_view(self, request, quote_id: int):
+        from .views import update_quote_status
+
+        return update_quote_status(request, self, quote_id)
 
     def create_sales_order_view(self, request, quote_id: int):
         from .views import create_sales_order
@@ -269,26 +279,6 @@ class QuoteGeneratorPlugin(
         from .views import part_recent_quotes_api
 
         return part_recent_quotes_api(request, self, part_id)
-
-    def get_ui_navigation_items(self, request, context, **kwargs):
-        """Add a direct navigation entry to the separate quote workspace."""
-
-        del context, kwargs
-        from users.permissions import check_user_role
-
-        if not request.user or not (
-            request.user.is_superuser or check_user_role(request.user, "sales_order", "view")
-        ):
-            return []
-        return [
-            {
-                "key": "quote-generator-workspace",
-                "title": _("Quotes"),
-                "description": _("Create and manage customer quotes"),
-                "icon": "ti:file-invoice",
-                "options": {"url": self.control_panel_url},
-            }
-        ]
 
     def get_ui_spotlight_actions(self, request, context, **kwargs):
         del context, kwargs

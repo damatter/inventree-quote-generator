@@ -11,7 +11,7 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 
 - A **Quotes** panel on every accessible part page with **Start quote with this part**.
 - A **Quote Generator** dashboard widget with a one-click create button and live counts.
-- A navigation and spotlight shortcut to a separate quote workspace.
+- A spotlight shortcut to a separate quote workspace.
 - A responsive quote site for searching, creating, editing, duplicating, previewing,
   downloading, and deleting quotes.
 - Any number of line items per quote, including custom lines with no InvenTree part.
@@ -23,6 +23,7 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 - A visible manual-price fallback when the selected customer/part/quantity has no rule.
 - Optional blank prices and optional blank presentation fields.
 - Draft/ready/sent/accepted/declined/expired workflow statuses.
+- Status changes and accepted-quote Sales Order creation directly from the quote list.
 - One-click, duplicate-safe conversion of an accepted quote into a pending native
   InvenTree Sales Order.
 - PDF preview, stable PDF filenames, quote numbering, validity dates, internal notes,
@@ -41,14 +42,14 @@ every line switches to manual pricing and explains why.
 ## Install
 
 [Latest release](https://github.com/damatter/inventree-quote-generator/releases/latest) ·
-[Version 0.2.0](https://github.com/damatter/inventree-quote-generator/releases/tag/0.2.0) ·
-[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.2.0/CHANGELOG.md)
+[Version 0.2.1](https://github.com/damatter/inventree-quote-generator/releases/tag/0.2.1) ·
+[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.2.1/CHANGELOG.md)
 
 In **Admin Center → Plugins → Install Plugin**, enter these values exactly:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
 Version:     (leave blank)
 ```
 
@@ -64,14 +65,14 @@ Then:
 Container installations should enable **Check Plugins on Startup** so the installed plugin
 is restored after container replacement.
 
-### Update an existing installation to 0.2.0
+### Update an existing installation to 0.2.1
 
 Return to **Admin Center → Plugins** and edit or reinstall the package using the same values,
 changing only the release tag at the end of **Source URL**:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
 Version:     (leave blank)
 ```
 
@@ -82,7 +83,7 @@ version is already pinned in **Source URL**.
 For installations managed directly with `plugins.txt`, use:
 
 ```text
-inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
+inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
 ```
 
 Update by changing the tag after the final `@`, then run `invoke plugins` (or the normal
@@ -112,7 +113,7 @@ Admin Center plugin settings contain the defaults used for new quotes:
 - signatory name and optional title.
 
 Superusers can also edit every reusable default from the collapsible **Defaults for new
-quotes** panel on the quote editor. Each saved quote snapshots its own company name,
+quotes** panel on the main quote workspace. Each saved quote snapshots its own company name,
 letterhead address, and phone, so changing defaults does not rewrite older quotes.
 
 Browser assets are served directly by the plugin rather than copied through Django's shared

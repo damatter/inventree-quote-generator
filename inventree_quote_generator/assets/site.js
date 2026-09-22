@@ -317,7 +317,18 @@ function initializeQuoteEditor(page) {
 
     form.addEventListener("input", () => { dirty = true; });
     form.addEventListener("change", () => { dirty = true; });
-    form.addEventListener("submit", () => { submitting = true; });
+    form.addEventListener("submit", (event) => {
+        if (submitting) {
+            event.preventDefault();
+            return;
+        }
+        submitting = true;
+        window.setTimeout(() => {
+            form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                button.disabled = true;
+            });
+        }, 0);
+    });
     window.addEventListener("beforeunload", (event) => {
         if (!dirty || submitting) return;
         event.preventDefault();
@@ -344,36 +355,34 @@ function initializeQuoteEditor(page) {
         }
     });
 
-    const defaultsForm = page.querySelector("[data-defaults-form]");
-    page.querySelector("[data-copy-quote-defaults]")?.addEventListener("click", () => {
-        if (!defaultsForm) return;
-        const names = [
-            "customer", "attention", "status", "currency", "subject", "company_name",
-            "company_address", "company_phone", "intro_text", "manufacturer", "item_name",
-            "model_name", "availability", "currency_terms", "availability_terms",
-            "validity_terms", "sale_terms", "closing_text", "tax_note", "fob_note",
-            "signatory_name", "signatory_title", "show_totals", "internal_notes"
-        ];
-        names.forEach((name) => {
-            const source = form.elements.namedItem(name);
-            const target = defaultsForm.elements.namedItem(`defaults-${name}`);
-            if (!source || !target) return;
-            if (source.type === "checkbox") target.checked = source.checked;
-            else target.value = source.value;
-        });
-        const issued = form.elements.namedItem("issue_date")?.value;
-        const validUntil = form.elements.namedItem("valid_until")?.value;
-        const daysTarget = defaultsForm.elements.namedItem("defaults-valid_days");
-        if (issued && validUntil && daysTarget) {
-            const days = Math.round((new Date(validUntil) - new Date(issued)) / 86400000);
-            if (Number.isFinite(days) && days >= 0) daysTarget.value = String(days);
-        }
-        defaultsForm.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-
     const firstError = page.querySelector(".field-error, .error-banner");
     if (firstError) firstError.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+function initializeQuoteList(page) {
+    page.querySelectorAll("[data-quote-workflow-form]").forEach((form) => {
+        const status = form.querySelector("[data-workflow-status]");
+        const createButton = form.querySelector("[data-create-sales-order]");
+        if (!status || !createButton) return;
+
+        const updateCreateState = () => {
+            createButton.disabled = status.value !== "accepted";
+            createButton.title = createButton.disabled
+                ? "Choose Accepted before creating a sales order."
+                : "Create a pending sales order.";
+        };
+        status.addEventListener("change", updateCreateState);
+        createButton.addEventListener("click", (event) => {
+            if (!window.confirm("Create a pending InvenTree sales order from this accepted quote?")) {
+                event.preventDefault();
+            }
+        });
+        updateCreateState();
+    });
+}
+
 const editor = document.querySelector("[data-quote-editor-page]");
 if (editor) initializeQuoteEditor(editor);
+
+const quoteList = document.querySelector("[data-quote-list-page]");
+if (quoteList) initializeQuoteList(quoteList);
