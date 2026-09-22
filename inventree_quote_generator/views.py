@@ -118,19 +118,6 @@ def quote_list(request, plugin):
             quotes = quotes.filter(status=status_filter)
 
         page_obj = Paginator(quotes, 30).get_page(_positive_int(request.GET.get("page")) or 1)
-        sales_orders = {}
-        sales_order_ids = [
-            quote.sales_order_id for quote in page_obj.object_list if quote.sales_order_id
-        ]
-        if sales_order_ids:
-            from order.models import SalesOrder
-
-            sales_orders = SalesOrder.objects.in_bulk(sales_order_ids)
-        for quote in page_obj.object_list:
-            quote.linked_sales_order = sales_orders.get(quote.sales_order_id)
-            quote.sales_order_url = (
-                quote.linked_sales_order.get_absolute_url() if quote.linked_sales_order else ""
-            )
         totals = Quote.objects.aggregate(
             total=Count("pk"),
             drafts=Count("pk", filter=Q(status=Quote.Status.DRAFT)),
@@ -307,11 +294,6 @@ def quote_editor(request, plugin, quote_id: int | None = None):
         customers_catalog = list(
             quote_form.fields["customer"].queryset.values("pk", "name", "currency")
         )
-        sales_order = None
-        if quote.pk and quote.sales_order_id:
-            from order.models import SalesOrder
-
-            sales_order = SalesOrder.objects.filter(pk=quote.sales_order_id).first()
         context = {
             "plugin_title": plugin.TITLE,
             "plugin_version": plugin.VERSION,
@@ -330,11 +312,9 @@ def quote_editor(request, plugin, quote_id: int | None = None):
                 f"{plugin.control_panel_url}{quote.pk}/duplicate/" if quote.pk else ""
             ),
             "delete_url": f"{plugin.control_panel_url}{quote.pk}/delete/" if quote.pk else "",
-            "convert_url": (
-                f"{plugin.control_panel_url}{quote.pk}/create-sales-order/" if quote.pk else ""
+            "sage_export_url": (
+                f"{plugin.control_panel_url}{quote.pk}/sage-export/" if quote.pk else ""
             ),
-            "sales_order": sales_order,
-            "sales_order_url": sales_order.get_absolute_url() if sales_order else "",
         }
         response = render(request, "inventree_quote_generator/quote_editor.html", context)
         response["Cache-Control"] = "no-store"
@@ -372,13 +352,15 @@ def update_quote_status(request, plugin, quote_id: int):
     return authenticated_view(request)
 
 
-def create_sales_order(request, plugin, quote_id: int):
-    """Create a pending native InvenTree sales order from an accepted quote."""
+def sage_export(request, plugin, quote_id: int):
+    """Download one accepted quote in the duplicate-safe Sage Bridge format."""
 
     from django.contrib import messages
     from django.contrib.auth.decorators import login_required
-    from django.core.exceptions import ValidationError
+    from django.db.models import F
+    from django.http import HttpResponse
     from django.shortcuts import get_object_or_404, redirect
+    from django.utils import timezone
     from django.views.decorators.http import require_POST
 
     @login_required
@@ -386,39 +368,35 @@ def create_sales_order(request, plugin, quote_id: int):
     def authenticated_view(request):
         _require_sales_role(request.user, "change")
         from .models import Quote
-        from .workflow import convert_quote_to_sales_order
+        from .sage import SageExportError, render_sage_csv, sage_csv_filename
 
-        quote = get_object_or_404(Quote, pk=quote_id)
+        quote = get_object_or_404(
+            Quote.objects.select_related("customer").prefetch_related("line_items"),
+            pk=quote_id,
+        )
         return_to_list = request.POST.get("return_to") == "list"
-        requested_status = str(request.POST.get("status", "") or "")
-        if requested_status:
-            if requested_status not in Quote.Status.values:
-                messages.error(request, "Choose a valid quote status.")
-                return redirect(
-                    plugin.control_panel_url
-                    if return_to_list
-                    else f"{plugin.control_panel_url}{quote.pk}/edit/"
-                )
-            if quote.status != requested_status:
-                quote.status = requested_status
-                quote.updated_by = request.user
-                quote.save(update_fields=["status", "updated_by", "updated"])
         try:
-            sales_order, created = convert_quote_to_sales_order(quote, request.user)
-        except ValidationError as error:
-            messages.error(request, " ".join(error.messages))
+            payload = render_sage_csv(quote)
+        except SageExportError as error:
+            messages.error(request, str(error))
             return redirect(
                 plugin.control_panel_url
                 if return_to_list
                 else f"{plugin.control_panel_url}{quote.pk}/edit/"
             )
 
-        if created:
-            messages.success(
-                request,
-                f"Sales order {sales_order.reference} was created as a pending order.",
-            )
-        return redirect(sales_order.get_absolute_url())
+        Quote.objects.filter(pk=quote.pk).update(
+            sage_export_count=F("sage_export_count") + 1,
+            sage_last_exported_at=timezone.now(),
+            sage_last_exported_by_id=request.user.pk,
+        )
+        reference = quote.sage_reference or quote.quote_number
+        response = HttpResponse(payload, content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{sage_csv_filename(reference)}"'
+        )
+        response["Cache-Control"] = "no-store"
+        return response
 
     return authenticated_view(request)
 
@@ -498,6 +476,16 @@ def duplicate_quote(request, plugin, quote_id: int):
             "updated",
             "last_generated_at",
             "generation_count",
+            "sage_reference",
+            "invoice_date",
+            "ship_date",
+            "sage_export_count",
+            "sage_last_exported_at",
+            "sage_last_exported_by",
+            "sales_order_id",
+            "sales_order_reference",
+            "converted_at",
+            "converted_by",
         }
         values = {
             field.name: getattr(source, field.name)

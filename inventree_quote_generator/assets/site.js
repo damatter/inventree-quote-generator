@@ -347,42 +347,14 @@ function initializeQuoteEditor(page) {
             submitting = true;
         }
     });
-    page.querySelector("[data-confirm-sales-order]")?.addEventListener("click", (event) => {
-        if (!window.confirm("Create a pending InvenTree sales order from this accepted quote?")) {
+    page.querySelector("[data-sage-export]")?.addEventListener("click", (event) => {
+        if (dirty && !window.confirm("Unsaved changes are not included in the Sage file. Download the last saved version anyway?")) {
             event.preventDefault();
-        } else {
-            submitting = true;
         }
     });
-
     const firstError = page.querySelector(".field-error, .error-banner");
     if (firstError) firstError.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-function initializeQuoteList(page) {
-    page.querySelectorAll("[data-quote-workflow-form]").forEach((form) => {
-        const status = form.querySelector("[data-workflow-status]");
-        const createButton = form.querySelector("[data-create-sales-order]");
-        if (!status || !createButton) return;
-
-        const updateCreateState = () => {
-            createButton.disabled = status.value !== "accepted";
-            createButton.title = createButton.disabled
-                ? "Choose Accepted before creating a sales order."
-                : "Create a pending sales order.";
-        };
-        status.addEventListener("change", updateCreateState);
-        createButton.addEventListener("click", (event) => {
-            if (!window.confirm("Create a pending InvenTree sales order from this accepted quote?")) {
-                event.preventDefault();
-            }
-        });
-        updateCreateState();
-    });
-}
-
 const editor = document.querySelector("[data-quote-editor-page]");
 if (editor) initializeQuoteEditor(editor);
-
-const quoteList = document.querySelector("[data-quote-list-page]");
-if (quoteList) initializeQuoteList(quoteList);

@@ -173,6 +173,25 @@ class QuoteGeneratorPlugin(
             "description": _("Private notes added to new quotes; never printed."),
             "default": "",
         },
+        "DEFAULT_SAGE_TRANSACTION_TYPE": {
+            "name": _("Default Sage transaction type"),
+            "description": _("Transaction type selected for new quote handoffs."),
+            "choices": [
+                ("Sales Invoice", _("Sales Invoice")),
+                ("Sales Order", _("Sales Order")),
+            ],
+            "default": "Sales Invoice",
+        },
+        "DEFAULT_SAGE_REVENUE_ACCOUNT": {
+            "name": _("Default Sage revenue account"),
+            "description": _("Revenue account copied into every exported quote line."),
+            "default": "",
+        },
+        "DEFAULT_SAGE_TAX_CODE": {
+            "name": _("Default Sage tax code"),
+            "description": _("Tax code copied into every exported quote line."),
+            "default": "",
+        },
     }
 
     @property
@@ -211,9 +230,9 @@ class QuoteGeneratorPlugin(
             ),
             path("<int:quote_id>/pdf/", self.quote_pdf_view, name="quote-pdf"),
             path(
-                "<int:quote_id>/create-sales-order/",
-                self.create_sales_order_view,
-                name="create-sales-order",
+                "<int:quote_id>/sage-export/",
+                self.sage_export_view,
+                name="sage-export",
             ),
             path("<int:quote_id>/duplicate/", self.quote_duplicate_view, name="quote-duplicate"),
             path("<int:quote_id>/delete/", self.quote_delete_view, name="quote-delete"),
@@ -245,10 +264,10 @@ class QuoteGeneratorPlugin(
 
         return update_quote_status(request, self, quote_id)
 
-    def create_sales_order_view(self, request, quote_id: int):
-        from .views import create_sales_order
+    def sage_export_view(self, request, quote_id: int):
+        from .views import sage_export
 
-        return create_sales_order(request, self, quote_id)
+        return sage_export(request, self, quote_id)
 
     def quote_duplicate_view(self, request, quote_id: int):
         from .views import duplicate_quote

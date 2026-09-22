@@ -16,7 +16,8 @@ class QuoteAdmin(admin.ModelAdmin):
         "customer_name",
         "issue_date",
         "status",
-        "sales_order_reference",
+        "sage_transaction_type",
+        "sage_export_count",
         "updated",
     ]
     list_filter = ["status", "issue_date", "currency"]
