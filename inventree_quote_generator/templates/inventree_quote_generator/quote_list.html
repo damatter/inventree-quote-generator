@@ -35,6 +35,8 @@
     </section>
     {% endif %}
 
+    {% if can_manage_defaults %}{% include "inventree_quote_generator/_quote_defaults.html" %}{% endif %}
+
     <form class="filters" method="get" action="{{ control_panel_url }}">
         <div>
             <label for="quote-search">Search quotes</label>
@@ -66,11 +68,31 @@
                 <div class="quote-subject">{{ quote.subject|default:"No subject" }}</div>
                 {% if quote.valid_until %}<div class="quote-meta">Valid until {{ quote.valid_until|date:"F j, Y" }}</div>{% endif %}
             </div>
-            <span class="status status-{{ quote.status }}">{{ quote.get_status_display }}</span>
-            <div class="quote-actions">
-                {% if can_change %}<a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/edit/">Edit</a>{% endif %}
-                <a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/" target="_blank" rel="noopener">Preview</a>
-                <a class="button small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/?download=1">Download</a>
+            <div class="quote-operations">
+                {% if can_change %}
+                <form class="quote-workflow" method="post" action="{{ control_panel_url }}{{ quote.pk }}/status/" data-quote-workflow-form>
+                    {% csrf_token %}
+                    <label for="quote-status-{{ quote.pk }}">Status</label>
+                    <select id="quote-status-{{ quote.pk }}" name="status" data-workflow-status>
+                        {% for value, label in status_choices %}<option value="{{ value }}"{% if quote.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <button class="button secondary small" type="submit">Save status</button>
+                    {% if quote.linked_sales_order %}
+                    <a class="button small" href="{{ quote.sales_order_url }}">Open Sales Order {{ quote.linked_sales_order.reference }}</a>
+                    {% elif quote.sales_order_id %}
+                    <span class="field-error">Linked sales order not found</span>
+                    {% else %}
+                    <button class="button small" type="submit" name="return_to" value="list" formaction="{{ control_panel_url }}{{ quote.pk }}/create-sales-order/" data-create-sales-order{% if quote.status != "accepted" %} disabled{% endif %}>Create Sales Order</button>
+                    {% endif %}
+                </form>
+                {% else %}
+                <span class="status status-{{ quote.status }}">{{ quote.get_status_display }}</span>
+                {% endif %}
+                <div class="quote-actions">
+                    {% if can_change %}<a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/edit/">Edit</a>{% endif %}
+                    <a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/" target="_blank" rel="noopener">Preview PDF</a>
+                    <a class="button secondary small" href="{{ control_panel_url }}{{ quote.pk }}/pdf/?download=1">Download PDF</a>
+                </div>
             </div>
         </article>
         {% endfor %}

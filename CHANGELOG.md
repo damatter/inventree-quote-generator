@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 - 2026-09-22
+
+- Move new-quote defaults to the main quote workspace.
+- Add status changes and accepted-quote Sales Order creation to the quote list.
+- Open saved PDF previews in a new browser tab.
+- Prevent a reused new-quote form from creating a duplicate quote.
+- Remove the incompatible top navigation shortcut.
+
 ## 0.2.0 - 2026-09-22
 
 - Add duplicate-safe conversion from an accepted quote to a pending native InvenTree

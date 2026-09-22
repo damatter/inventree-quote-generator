@@ -30,3 +30,15 @@ def test_conversion_is_explicit_pending_and_idempotent():
     assert "create-sales-order" in core
     assert "Create Sales Order" in template
     assert "It does not issue, ship, or invoice it." in template
+
+
+def test_quote_list_exposes_status_and_sales_order_actions():
+    core = (PACKAGE_ROOT / "core.py").read_text(encoding="utf-8")
+    template = (
+        PACKAGE_ROOT / "templates" / "inventree_quote_generator" / "quote_list.html"
+    ).read_text(encoding="utf-8")
+
+    assert '"<int:quote_id>/status/"' in core
+    assert "data-quote-workflow-form" in template
+    assert "data-create-sales-order" in template
+    assert "get_ui_navigation_items" not in core
