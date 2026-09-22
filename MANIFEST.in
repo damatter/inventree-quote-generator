@@ -1,3 +1,5 @@
 recursive-include inventree_quote_generator/templates *.html
 recursive-include inventree_quote_generator/assets *.css *.js
 include LICENSE
+include CHANGELOG.md
+include ROADMAP.md

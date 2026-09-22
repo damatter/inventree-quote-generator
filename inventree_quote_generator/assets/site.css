@@ -178,6 +178,35 @@ input[readonly] { color: #425766; background: #edf2f4; }
 .line-grid .price-field { grid-column: span 3; }
 .line-grid .currency-field { grid-column: span 2; }
 .line-grid .extended-price-field { grid-column: span 4; }
+.part-search { position: relative; }
+.part-results {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    overflow: auto;
+    max-height: 250px;
+    border: 1px solid #9eb1bb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 22px rgb(29 57 72 / 18%);
+}
+.part-result {
+    display: block;
+    width: 100%;
+    padding: 10px 11px;
+    border: 0;
+    border-bottom: 1px solid #e1e8eb;
+    color: #233f52;
+    background: #fff;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.part-result:last-child { border-bottom: 0; }
+.part-result:hover, .part-result:focus-visible { background: #e8f3f5; }
 .line-extended {
     display: flex;
     width: 100%;

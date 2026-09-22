@@ -11,7 +11,14 @@ class QuoteLineItemInline(admin.TabularInline):
 
 
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ["quote_number", "customer_name", "issue_date", "status", "updated"]
+    list_display = [
+        "quote_number",
+        "customer_name",
+        "issue_date",
+        "status",
+        "sales_order_reference",
+        "updated",
+    ]
     list_filter = ["status", "issue_date", "currency"]
     search_fields = ["quote_number", "customer_name", "subject"]
     inlines = [QuoteLineItemInline]

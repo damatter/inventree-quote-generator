@@ -1,7 +1,7 @@
 # InvenTree Quote Generator
 
-An InvenTree 1.3.x plugin for creating polished, multi-line customer quote PDFs from a
-separate interactive workspace or directly from any part.
+An InvenTree 1.3.x plugin for creating polished, multi-line customer quote PDFs and moving
+accepted quotes into the native InvenTree sales workflow.
 
 The PDF layout follows the supplied DI-COR quote: logo and letterhead, date, customer,
 subject, optional manufacturer/item/model details, compact quoted lines, Terms section,
@@ -15,11 +15,16 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 - A responsive quote site for searching, creating, editing, duplicating, previewing,
   downloading, and deleting quotes.
 - Any number of line items per quote, including custom lines with no InvenTree part.
+- A fast, type-ahead InvenTree part search instead of a full-part dropdown.
+- A sample-style DI-COR preset automatically applied to every new quote, with editable
+  per-quote fields and workspace defaults.
 - Clearly labeled price-each and calculated extended-price values for every line.
 - Automatic customer- and quantity-specific pricing from `inventree-customer-pricing`.
 - A visible manual-price fallback when the selected customer/part/quantity has no rule.
 - Optional blank prices and optional blank presentation fields.
 - Draft/ready/sent/accepted/declined/expired workflow statuses.
+- One-click, duplicate-safe conversion of an accepted quote into a pending native
+  InvenTree Sales Order.
 - PDF preview, stable PDF filenames, quote numbering, validity dates, internal notes,
   per-line availability/notes, and an optional same-currency subtotal.
 
@@ -35,11 +40,15 @@ every line switches to manual pricing and explains why.
 
 ## Install
 
+[Latest release](https://github.com/damatter/inventree-quote-generator/releases/latest) ·
+[Version 0.2.0](https://github.com/damatter/inventree-quote-generator/releases/tag/0.2.0) ·
+[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.2.0/CHANGELOG.md)
+
 In **Admin Center → Plugins → Install Plugin**, enter these values exactly:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.1
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
 Version:     (leave blank)
 ```
 
@@ -55,14 +64,14 @@ Then:
 Container installations should enable **Check Plugins on Startup** so the installed plugin
 is restored after container replacement.
 
-### Update to a newer release
+### Update an existing installation to 0.2.0
 
 Return to **Admin Center → Plugins** and edit or reinstall the package using the same values,
-changing only the release tag at the end of **Source URL**. For example, to update to `0.1.2`:
+changing only the release tag at the end of **Source URL**:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.1.2
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
 Version:     (leave blank)
 ```
 
@@ -73,7 +82,7 @@ version is already pinned in **Source URL**.
 For installations managed directly with `plugins.txt`, use:
 
 ```text
-inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.1.1
+inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.2.0
 ```
 
 Update by changing the tag after the final `@`, then run `invoke plugins` (or the normal
@@ -126,4 +135,9 @@ python -m pytest
 python -m build
 ```
 
-The plugin owns its quote tables and does not create or modify InvenTree SalesOrder records.
+## Sales workflow
+
+An accepted quote can create one pending native InvenTree Sales Order. The order is left
+pending for review; the plugin does not automatically issue it, allocate stock, ship it, or
+create a Sage invoice. See the [sales workflow roadmap](ROADMAP.md) for the planned branded
+packing slip and accounting handoff stages.

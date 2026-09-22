@@ -215,8 +215,10 @@ class QuoteForm(forms.ModelForm):
                         "item_name": initial_part.name,
                     }
                 )
-            for name, value in defaults.items():
-                self.fields[name].initial = value
+            # ModelForm provides empty-string model defaults in ``self.initial``.
+            # Those values take precedence over Field.initial, which previously
+            # caused every optional default to appear blank in new quotes.
+            self.initial.update(defaults)
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "CAD").upper()
@@ -235,6 +237,16 @@ class QuoteLineItemForm(forms.ModelForm):
 
     PRICE_MODES = (("auto", "Customer pricing"), ("manual", "Manual price"))
     price_mode = forms.ChoiceField(choices=PRICE_MODES, required=False, initial="auto")
+    part_search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "placeholder": "Type at least 2 characters to search",
+                "data-part-search": "",
+            }
+        ),
+    )
 
     class Meta:
         model = QuoteLineItem
@@ -260,8 +272,14 @@ class QuoteLineItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.customer = customer
         self.quote_currency = (quote_currency or "CAD").upper()
-        self.fields["part"].queryset = Part.objects.filter(active=True).order_by("name", "IPN")
+        selected_part = self.initial.get("part") or self.instance.part
+        selected_part_id = getattr(selected_part, "pk", selected_part) or self.instance.part_id
+        parts = Part.objects.filter(active=True)
+        if selected_part_id:
+            parts = Part.objects.filter(Q(active=True) | Q(pk=selected_part_id))
+        self.fields["part"].queryset = parts.order_by("name", "IPN")
         self.fields["part"].required = False
+        self.fields["part"].widget = forms.HiddenInput()
         self.fields["part"].empty_label = "Custom line item / no InvenTree part"
         for field in self.fields.values():
             field.required = False
@@ -270,6 +288,15 @@ class QuoteLineItemForm(forms.ModelForm):
                 "manual" if self.instance.manual_price else "auto"
             )
         self.fields["currency"].widget.attrs.update({"maxlength": 3, "data-uppercase": "true"})
+        if selected_part_id and not hasattr(selected_part, "IPN"):
+            selected_part = self.fields["part"].queryset.filter(pk=selected_part_id).first()
+        if selected_part is not None and hasattr(selected_part, "IPN"):
+            label = " - ".join(
+                value
+                for value in (selected_part.IPN, selected_part.name or selected_part.description)
+                if value
+            )
+            self.initial.setdefault("part_search", label)
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or self.quote_currency).upper()

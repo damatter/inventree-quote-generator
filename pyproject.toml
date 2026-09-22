@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-quote-generator"
-version = "0.1.1"
-description = "Customer-priced, multi-line quote generation for InvenTree"
+version = "0.2.0"
+description = "Customer quoting and sales-order handoff for InvenTree"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
