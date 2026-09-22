@@ -20,6 +20,14 @@
                 </div>
             </div>
             <div class="defaults-section">
+                <h3>Sage handoff</h3>
+                <div class="field-grid">
+                    <div class="field third"><label for="{{ defaults_form.sage_transaction_type.id_for_label }}">Create in Sage</label>{{ defaults_form.sage_transaction_type }}</div>
+                    <div class="field third"><label for="{{ defaults_form.sage_revenue_account.id_for_label }}">Revenue account</label>{{ defaults_form.sage_revenue_account }}</div>
+                    <div class="field third"><label for="{{ defaults_form.sage_tax_code.id_for_label }}">HST / tax code</label>{{ defaults_form.sage_tax_code }}</div>
+                </div>
+            </div>
+            <div class="defaults-section">
                 <h3>Letterhead</h3>
                 <div class="field-grid">
                     <div class="field third"><label for="{{ defaults_form.company_name.id_for_label }}">Company name</label>{{ defaults_form.company_name }}</div>

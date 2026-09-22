@@ -41,6 +41,9 @@ DEFAULT_FORM_SETTINGS = {
     "signatory_title": "SIGNATORY_TITLE",
     "show_totals": "DEFAULT_SHOW_TOTALS",
     "internal_notes": "DEFAULT_INTERNAL_NOTES",
+    "sage_transaction_type": "DEFAULT_SAGE_TRANSACTION_TYPE",
+    "sage_revenue_account": "DEFAULT_SAGE_REVENUE_ACCOUNT",
+    "sage_tax_code": "DEFAULT_SAGE_TAX_CODE",
 }
 
 
@@ -78,6 +81,11 @@ class QuoteDefaultsForm(forms.Form):
     signatory_title = forms.CharField(required=False, max_length=255)
     show_totals = forms.BooleanField(required=False)
     internal_notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    sage_transaction_type = forms.ChoiceField(
+        choices=Quote.SageTransactionType.choices, required=True
+    )
+    sage_revenue_account = forms.CharField(required=False, max_length=32)
+    sage_tax_code = forms.CharField(required=False, max_length=32)
 
     def __init__(self, *args, plugin, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,6 +103,10 @@ class QuoteDefaultsForm(forms.Form):
             initial["currency"] = plugin.get_setting("DEFAULT_CURRENCY") or "CAD"
             initial["valid_days"] = plugin.get_setting("DEFAULT_VALID_DAYS") or 30
             initial["show_totals"] = bool(plugin.get_setting("DEFAULT_SHOW_TOTALS"))
+            initial["sage_transaction_type"] = (
+                plugin.get_setting("DEFAULT_SAGE_TRANSACTION_TYPE")
+                or Quote.SageTransactionType.SALES_INVOICE
+            )
             self.initial.update(initial)
 
     def clean_currency(self):
@@ -145,6 +157,13 @@ class QuoteForm(forms.ModelForm):
             "signatory_title",
             "show_totals",
             "internal_notes",
+            "sage_customer_name",
+            "sage_transaction_type",
+            "sage_reference",
+            "invoice_date",
+            "ship_date",
+            "sage_revenue_account",
+            "sage_tax_code",
         ]
         widgets = {
             "issue_date": forms.DateInput(attrs={"type": "date"}),
@@ -153,6 +172,8 @@ class QuoteForm(forms.ModelForm):
             "intro_text": forms.Textarea(attrs={"rows": 2}),
             "closing_text": forms.Textarea(attrs={"rows": 4}),
             "internal_notes": forms.Textarea(attrs={"rows": 3}),
+            "invoice_date": forms.DateInput(attrs={"type": "date"}),
+            "ship_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def __init__(self, *args, plugin=None, initial_part=None, **kwargs):
@@ -207,6 +228,13 @@ class QuoteForm(forms.ModelForm):
                 "signatory_title": plugin.get_setting("SIGNATORY_TITLE") or "",
                 "show_totals": bool(plugin.get_setting("DEFAULT_SHOW_TOTALS")),
                 "internal_notes": plugin.get_setting("DEFAULT_INTERNAL_NOTES") or "",
+                "sage_transaction_type": (
+                    plugin.get_setting("DEFAULT_SAGE_TRANSACTION_TYPE")
+                    or Quote.SageTransactionType.SALES_INVOICE
+                ),
+                "sage_revenue_account": plugin.get_setting("DEFAULT_SAGE_REVENUE_ACCOUNT")
+                or "",
+                "sage_tax_code": plugin.get_setting("DEFAULT_SAGE_TAX_CODE") or "",
             }
             if initial_part is not None:
                 defaults.update(
@@ -219,6 +247,13 @@ class QuoteForm(forms.ModelForm):
             # Those values take precedence over Field.initial, which previously
             # caused every optional default to appear blank in new quotes.
             self.initial.update(defaults)
+        elif not self.is_bound and self.instance.pk and plugin is not None:
+            if not self.instance.sage_revenue_account:
+                self.initial["sage_revenue_account"] = (
+                    plugin.get_setting("DEFAULT_SAGE_REVENUE_ACCOUNT") or ""
+                )
+            if not self.instance.sage_tax_code:
+                self.initial["sage_tax_code"] = plugin.get_setting("DEFAULT_SAGE_TAX_CODE") or ""
 
     def clean_currency(self):
         return (self.cleaned_data.get("currency") or "CAD").upper()

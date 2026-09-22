@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-09-22
+
+- Replace native InvenTree Sales Order creation with a direct accepted-quote Sage handoff.
+- Export every quote line in one Sage Bridge CSV.
+- Add editable Sage customer, transaction type, number, invoice/order date, ship date,
+  revenue account, and HST/tax code fields.
+- Track how many times a Sage file was prepared and when it was last downloaded.
+- Preserve legacy native Sales Order links without using them for new quotes.
+- Update duplicate-quote handling so legacy links and Sage export history are never copied.
+
 ## 0.2.1 - 2026-09-22
 
 - Move new-quote defaults to the main quote workspace.

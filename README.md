@@ -1,7 +1,7 @@
 # InvenTree Quote Generator
 
-An InvenTree 1.3.x plugin for creating polished, multi-line customer quote PDFs and moving
-accepted quotes into the native InvenTree sales workflow.
+An InvenTree 1.3.x plugin for creating polished, multi-line customer quote PDFs and sending
+accepted quotes directly to the Sage 50 Canada Bridge.
 
 The PDF layout follows the supplied DI-COR quote: logo and letterhead, date, customer,
 subject, optional manufacturer/item/model details, compact quoted lines, Terms section,
@@ -23,9 +23,11 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 - A visible manual-price fallback when the selected customer/part/quantity has no rule.
 - Optional blank prices and optional blank presentation fields.
 - Draft/ready/sent/accepted/declined/expired workflow statuses.
-- Status changes and accepted-quote Sales Order creation directly from the quote list.
-- One-click, duplicate-safe conversion of an accepted quote into a pending native
-  InvenTree Sales Order.
+- Status changes and Sage exports directly from the quote list.
+- One Sage Bridge CSV per accepted quote, containing every line item plus the customer,
+  transaction number, invoice/order date, ship date, revenue account, and tax code.
+- Stable transaction numbers so repeated downloads are safely skipped by Sage Bridge
+  instead of creating duplicate invoices.
 - PDF preview, stable PDF filenames, quote numbering, validity dates, internal notes,
   per-line availability/notes, and an optional same-currency subtotal.
 
@@ -34,7 +36,7 @@ closing paragraph, tax/F.O.B. notes, and signatory.
 - InvenTree `1.3.2` through `1.3.x`
 - Python `3.11` or newer, including Python `3.14`
 - The React-based InvenTree user interface
-- `inventree-customer-pricing` `0.2.0` for automatic customer price resolution
+- `inventree-customer-pricing` `0.6.1` for automatic customer price resolution
 
 The quote plugin still works when Customer Pricing is missing or inactive. In that case,
 every line switches to manual pricing and explains why.
@@ -42,14 +44,14 @@ every line switches to manual pricing and explains why.
 ## Install
 
 [Latest release](https://github.com/damatter/inventree-quote-generator/releases/latest) ·
-[Version 0.2.1](https://github.com/damatter/inventree-quote-generator/releases/tag/0.2.1) ·
-[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.2.1/CHANGELOG.md)
+[Version 0.3.0](https://github.com/damatter/inventree-quote-generator/releases/tag/0.3.0) ·
+[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.3.0/CHANGELOG.md)
 
 In **Admin Center → Plugins → Install Plugin**, enter these values exactly:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
 Version:     (leave blank)
 ```
 
@@ -65,14 +67,14 @@ Then:
 Container installations should enable **Check Plugins on Startup** so the installed plugin
 is restored after container replacement.
 
-### Update an existing installation to 0.2.1
+### Update an existing installation to 0.3.0
 
 Return to **Admin Center → Plugins** and edit or reinstall the package using the same values,
 changing only the release tag at the end of **Source URL**:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
 Version:     (leave blank)
 ```
 
@@ -80,10 +82,14 @@ Confirm the installation, run the normal InvenTree update/migration step, and re
 the web server and background worker. Do not also enter a value in **Version** when the
 version is already pinned in **Source URL**.
 
+On InvenTree 1.3.x, stop the background worker before installing or updating a plugin,
+then start it after the migration and static-file step completes. This avoids the known
+multi-process plugin static-file race.
+
 For installations managed directly with `plugins.txt`, use:
 
 ```text
-inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.2.1
+inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
 ```
 
 Update by changing the tag after the final `@`, then run `invoke plugins` (or the normal
@@ -125,7 +131,7 @@ be blank.
 ## Permissions
 
 - Sales-order `view` can list and generate existing quote PDFs.
-- Sales-order `change` can create, edit, duplicate, and delete quotes.
+- Sales-order `change` can create, edit, duplicate, delete, and export quotes to Sage.
 - Superusers retain full access.
 
 ## Development checks
@@ -136,9 +142,16 @@ python -m pytest
 python -m build
 ```
 
-## Sales workflow
+## Quote-to-Sage workflow
 
-An accepted quote can create one pending native InvenTree Sales Order. The order is left
-pending for review; the plugin does not automatically issue it, allocate stock, ship it, or
-create a Sage invoice. See the [sales workflow roadmap](ROADMAP.md) for the planned branded
-packing slip and accounting handoff stages.
+1. Finish the quote and mark it **Accepted**.
+2. In **Sage handoff**, confirm the exact Sage customer name, transaction type, dates,
+   revenue account, and tax code, then save.
+3. Click **Download Sage file** and open the CSV in Sage Bridge.
+4. Review the lines and import them. Sage Bridge checks the transaction number before
+   posting, so downloading or importing the same quote again does not create a duplicate.
+
+This workflow intentionally does not create an InvenTree Sales Order. Historical links
+created by versions 0.2.0 and 0.2.1 remain stored, but new quotes go directly to Sage.
+The next planned step is a branded packing slip and an explicit stock-issue action; see
+the [sales workflow roadmap](ROADMAP.md).

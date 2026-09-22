@@ -48,6 +48,10 @@ class Quote(models.Model):
         DECLINED = "declined", _("Declined")
         EXPIRED = "expired", _("Expired")
 
+    class SageTransactionType(models.TextChoices):
+        SALES_INVOICE = "Sales Invoice", _("Sales Invoice")
+        SALES_ORDER = "Sales Order", _("Sales Order")
+
     quote_number = models.CharField(max_length=32, unique=True, blank=True)
     customer = models.ForeignKey(
         Company,
@@ -87,9 +91,31 @@ class Quote(models.Model):
     show_totals = models.BooleanField(default=False)
     internal_notes = models.TextField(blank=True, default="")
 
-    # Store the InvenTree object ID instead of a database-level foreign key. This
-    # keeps the plugin migration independent from InvenTree's internal order
-    # migrations while still enforcing one sales order per quote.
+    # Accounting handoff fields. Customer and reference may remain blank: the
+    # export then uses the quote's customer snapshot and quote number.
+    sage_customer_name = models.CharField(max_length=255, blank=True, default="")
+    sage_transaction_type = models.CharField(
+        max_length=16,
+        choices=SageTransactionType.choices,
+        default=SageTransactionType.SALES_INVOICE,
+    )
+    sage_reference = models.CharField(max_length=64, blank=True, default="")
+    invoice_date = models.DateField(null=True, blank=True)
+    ship_date = models.DateField(null=True, blank=True)
+    sage_revenue_account = models.CharField(max_length=32, blank=True, default="")
+    sage_tax_code = models.CharField(max_length=32, blank=True, default="")
+    sage_export_count = models.PositiveIntegerField(default=0)
+    sage_last_exported_at = models.DateTimeField(null=True, blank=True)
+    sage_last_exported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+
+    # Legacy native-order fields are retained so upgrading cannot discard links
+    # created by versions 0.2.0 and 0.2.1. New workflows do not use them.
     sales_order_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
     sales_order_reference = models.CharField(max_length=64, blank=True, default="")
     converted_at = models.DateTimeField(null=True, blank=True)

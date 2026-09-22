@@ -81,6 +81,27 @@
                 </section>
 
                 <section class="card">
+                    <div class="card-heading"><div><h2>Sage handoff</h2><p>These values are sent directly from this quote to the Sage Bridge. Leave customer and number blank to use the quote values.</p></div></div>
+                    <div class="field-grid">
+                        <div class="field half">
+                            <label for="{{ quote_form.sage_customer_name.id_for_label }}">Customer name in Sage</label>
+                            {{ quote_form.sage_customer_name }}
+                            <span class="help">Exact Sage name; blank uses {{ quote.customer_name|default:"the selected customer" }}.</span>
+                        </div>
+                        <div class="field half">
+                            <label for="{{ quote_form.sage_reference.id_for_label }}">Sage invoice/order number</label>
+                            {{ quote_form.sage_reference }}
+                            <span class="help">Blank uses {{ quote.quote_number|default:"the new quote number" }}. This number prevents duplicate imports.</span>
+                        </div>
+                        <div class="field quarter"><label for="{{ quote_form.sage_transaction_type.id_for_label }}">Create in Sage</label>{{ quote_form.sage_transaction_type }}</div>
+                        <div class="field quarter"><label for="{{ quote_form.invoice_date.id_for_label }}">Invoice/order date</label>{{ quote_form.invoice_date }}{% for error in quote_form.invoice_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                        <div class="field quarter"><label for="{{ quote_form.ship_date.id_for_label }}">Ship date</label>{{ quote_form.ship_date }}{% for error in quote_form.ship_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                        <div class="field quarter"><label for="{{ quote_form.sage_tax_code.id_for_label }}">HST / tax code</label>{{ quote_form.sage_tax_code }}</div>
+                        <div class="field half"><label for="{{ quote_form.sage_revenue_account.id_for_label }}">Revenue account</label>{{ quote_form.sage_revenue_account }}<span class="help">Applied to every line in this quote.</span></div>
+                    </div>
+                </section>
+
+                <section class="card">
                     <div class="card-heading"><div><h2>Letterhead</h2><p>Adjust the company name, address, and phone for this quote. Leave a line blank to omit it.</p></div></div>
                     <div class="field-grid">
                         <div class="field third"><label for="{{ quote_form.company_name.id_for_label }}">Company name</label>{{ quote_form.company_name }}</div>
@@ -149,17 +170,13 @@
                     {% if quote.pk %}
                     <hr style="border:0;border-top:1px solid #dce4e8;margin:16px 0">
                     <div class="action-stack">
-                        {% if sales_order %}
-                        <a class="button" href="{{ sales_order_url }}">Open Sales Order {{ sales_order.reference }}</a>
-                        <p class="muted-note">This quote has already been converted.</p>
-                        {% elif quote.sales_order_id %}
-                        <p class="field-error">The linked sales order could not be found. Ask an administrator to review this quote.</p>
-                        {% elif quote.status == "accepted" %}
-                        <button class="button" type="submit" form="create-sales-order-form" data-confirm-sales-order>Create Sales Order</button>
-                        <p class="muted-note">Creates a pending InvenTree order for review. It does not issue, ship, or invoice it.</p>
+                        {% if quote.status == "accepted" %}
+                        <button class="button" type="submit" form="sage-export-form" data-sage-export>Download Sage file</button>
+                        <p class="muted-note">Save changes first, then open this CSV in Sage Bridge. Re-downloading is safe because the transaction number stays the same.</p>
                         {% else %}
-                        <p class="muted-note">Mark this quote Accepted and save it to create a sales order.</p>
+                        <p class="muted-note">Mark this quote Accepted and save it before sending it to Sage.</p>
                         {% endif %}
+                        {% if quote.sage_export_count %}<p class="muted-note">Prepared for Sage {{ quote.sage_export_count }} time{{ quote.sage_export_count|pluralize }}. Last download: {{ quote.sage_last_exported_at|date:"F j, Y g:i A" }}.</p>{% endif %}
                     </div>
                     <hr style="border:0;border-top:1px solid #dce4e8;margin:16px 0">
                     <div class="action-stack">
@@ -173,7 +190,7 @@
     </form>
 
     {% if quote.pk %}
-    <form id="create-sales-order-form" method="post" action="{{ convert_url }}">{% csrf_token %}</form>
+    <form id="sage-export-form" method="post" action="{{ sage_export_url }}">{% csrf_token %}</form>
     <form id="duplicate-quote-form" method="post" action="{{ duplicate_url }}">{% csrf_token %}</form>
     <form id="delete-quote-form" method="post" action="{{ delete_url }}">{% csrf_token %}</form>
     {% endif %}
