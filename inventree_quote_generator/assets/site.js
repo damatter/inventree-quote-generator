@@ -34,9 +34,9 @@ function initializeQuoteEditor(page) {
     const customerSelect = form?.querySelector('[name="customer"]');
     const quoteCurrency = form?.querySelector('[name="currency"]');
     const priceApi = form?.dataset.priceApi;
+    const partSearchApi = form?.dataset.partSearchApi;
     if (!form || !lineContainer || !template || !totalForms) return;
 
-    const parts = new Map(parseCatalog("quote-parts-catalog").map((part) => [String(part.pk), part]));
     const customers = new Map(
         parseCatalog("quote-customers-catalog").map((customer) => [String(customer.pk), customer])
     );
@@ -166,7 +166,9 @@ function initializeQuoteEditor(page) {
     }
 
     function bindLine(line, newlyAdded = false) {
-        const partSelect = field(line, "part");
+        const part = field(line, "part");
+        const partSearch = field(line, "part_search");
+        const partResults = line.querySelector("[data-part-results]");
         const quantity = field(line, "quantity");
         const mode = field(line, "price_mode");
         const price = field(line, "unit_price");
@@ -181,11 +183,20 @@ function initializeQuoteEditor(page) {
             timer = window.setTimeout(() => resolveLine(line, clearOnMiss), 180);
         };
 
-        partSelect?.addEventListener("change", () => {
-            const selected = parts.get(partSelect.value);
+        function hidePartResults() {
+            if (partResults) {
+                partResults.replaceChildren();
+                partResults.hidden = true;
+            }
+        }
+
+        function choosePart(selected) {
+            if (!part || !partSearch || !selected) return;
+            part.value = String(selected.pk);
+            partSearch.value = selected.label || selected.IPN || selected.name || "";
             if (selected) {
                 if (!description.value || description.dataset.partFilled === "true") {
-                    description.value = selected.name || selected.description || "";
+                    description.value = selected.description || selected.name || "";
                     description.dataset.partFilled = "true";
                 }
                 if (!partNumber.value || partNumber.dataset.partFilled === "true") {
@@ -193,8 +204,59 @@ function initializeQuoteEditor(page) {
                     partNumber.dataset.partFilled = "true";
                 }
             }
+            hidePartResults();
             dirty = true;
             scheduleResolve(true);
+        }
+
+        async function findParts(query) {
+            if (!partSearchApi || !partResults || query.length < 2) {
+                hidePartResults();
+                return;
+            }
+            if (line.partSearchAbort) line.partSearchAbort.abort();
+            line.partSearchAbort = new AbortController();
+            try {
+                const response = await fetch(
+                    `${partSearchApi}?${new URLSearchParams({ q: query })}`,
+                    {
+                        credentials: "same-origin",
+                        signal: line.partSearchAbort.signal,
+                        headers: { Accept: "application/json" }
+                    }
+                );
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error("Part search is unavailable.");
+                partResults.replaceChildren();
+                (payload.results || []).forEach((result) => {
+                    const option = document.createElement("button");
+                    option.type = "button";
+                    option.className = "part-result";
+                    option.setAttribute("role", "option");
+                    option.textContent = result.label || result.IPN || result.name;
+                    option.addEventListener("click", () => choosePart(result));
+                    partResults.appendChild(option);
+                });
+                partResults.hidden = !partResults.childElementCount;
+            } catch (error) {
+                if (error.name !== "AbortError") hidePartResults();
+            }
+        }
+
+        let searchTimer;
+        partSearch?.addEventListener("input", () => {
+            if (part) part.value = "";
+            window.clearTimeout(searchTimer);
+            const query = partSearch.value.trim();
+            searchTimer = window.setTimeout(() => findParts(query), 170);
+            dirty = true;
+            scheduleResolve(false);
+        });
+        partSearch?.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") hidePartResults();
+        });
+        partSearch?.addEventListener("blur", () => {
+            window.setTimeout(hidePartResults, 150);
         });
         description?.addEventListener("input", () => { description.dataset.partFilled = "false"; });
         partNumber?.addEventListener("input", () => { partNumber.dataset.partFilled = "false"; });
@@ -217,7 +279,7 @@ function initializeQuoteEditor(page) {
         if (mode?.value === "auto" && price) price.readOnly = true;
         if (newlyAdded) {
             currency.value = quoteCurrency?.value || currency.value || "CAD";
-            partSelect?.focus();
+            partSearch?.focus();
         }
     }
 
@@ -269,6 +331,13 @@ function initializeQuoteEditor(page) {
     });
     page.querySelector("[data-confirm-delete]")?.addEventListener("click", (event) => {
         if (!window.confirm("Delete this quote permanently? This cannot be undone.")) {
+            event.preventDefault();
+        } else {
+            submitting = true;
+        }
+    });
+    page.querySelector("[data-confirm-sales-order]")?.addEventListener("click", (event) => {
+        if (!window.confirm("Create a pending InvenTree sales order from this accepted quote?")) {
             event.preventDefault();
         } else {
             submitting = true;

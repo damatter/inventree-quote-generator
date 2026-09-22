@@ -81,17 +81,17 @@ class QuoteGeneratorPlugin(
         "DEFAULT_SUBJECT": {
             "name": _("Default subject"),
             "description": _("Subject used when a part does not supply one."),
-            "default": "",
+            "default": "Spare Parts",
         },
         "DEFAULT_MANUFACTURER": {
             "name": _("Default manufacturer"),
             "description": _("Manufacturer shown on new quotes."),
-            "default": "",
+            "default": "DI-COR Engineering",
         },
         "DEFAULT_ITEM_NAME": {
             "name": _("Default item name"),
             "description": _("Item wording shown on new quotes."),
-            "default": "",
+            "default": "Parts",
         },
         "DEFAULT_MODEL_NAME": {
             "name": _("Default model"),
@@ -101,7 +101,7 @@ class QuoteGeneratorPlugin(
         "DEFAULT_AVAILABILITY": {
             "name": _("Default standalone availability"),
             "description": _("Optional availability line for new quotes."),
-            "default": "",
+            "default": "Stock",
         },
         "INTRO_TEXT": {
             "name": _("Default introduction"),
@@ -195,6 +195,7 @@ class QuoteGeneratorPlugin(
         return [
             path("assets/<str:filename>", auth_exempt(self.asset_view), name="asset"),
             path("api/summary/", self.summary_api_view, name="summary-api"),
+            path("api/parts/search/", self.part_search_api_view, name="part-search-api"),
             path("api/resolve-price/", self.resolve_price_api_view, name="resolve-price-api"),
             path(
                 "api/part/<int:part_id>/recent/",
@@ -204,6 +205,11 @@ class QuoteGeneratorPlugin(
             path("new/", self.quote_editor_view, name="quote-create"),
             path("<int:quote_id>/edit/", self.quote_editor_view, name="quote-edit"),
             path("<int:quote_id>/pdf/", self.quote_pdf_view, name="quote-pdf"),
+            path(
+                "<int:quote_id>/create-sales-order/",
+                self.create_sales_order_view,
+                name="create-sales-order",
+            ),
             path("<int:quote_id>/duplicate/", self.quote_duplicate_view, name="quote-duplicate"),
             path("<int:quote_id>/delete/", self.quote_delete_view, name="quote-delete"),
             path("", self.quote_list_view, name="quote-list"),
@@ -229,6 +235,11 @@ class QuoteGeneratorPlugin(
 
         return quote_pdf(request, self, quote_id)
 
+    def create_sales_order_view(self, request, quote_id: int):
+        from .views import create_sales_order
+
+        return create_sales_order(request, self, quote_id)
+
     def quote_duplicate_view(self, request, quote_id: int):
         from .views import duplicate_quote
 
@@ -248,6 +259,11 @@ class QuoteGeneratorPlugin(
         from .views import resolve_price_api
 
         return resolve_price_api(request)
+
+    def part_search_api_view(self, request):
+        from .views import part_search_api
+
+        return part_search_api(request)
 
     def part_recent_quotes_api_view(self, request, part_id: int):
         from .views import part_recent_quotes_api

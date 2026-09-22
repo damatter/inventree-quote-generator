@@ -8,9 +8,15 @@
     {% if line.non_field_errors %}<div class="field-error">{{ line.non_field_errors|join:", " }}</div>{% endif %}
     <div class="line-grid">
         <div class="field part-field">
-            <label for="{{ line.part.id_for_label }}">InvenTree part</label>
+            <label for="{{ line.part_search.id_for_label }}">InvenTree part</label>
             {{ line.part }}
+            <div class="part-search" data-part-search-wrap>
+                {{ line.part_search }}
+                <div class="part-results" data-part-results role="listbox" hidden></div>
+            </div>
+            <span class="help">Start typing to find a part. Select a result to use customer pricing.</span>
             {% for error in line.part.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            {% for error in line.part_search.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
         </div>
         <div class="field qty-field">
             <label for="{{ line.quantity.id_for_label }}">Quantity</label>

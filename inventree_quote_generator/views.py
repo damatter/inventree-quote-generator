@@ -264,14 +264,14 @@ def quote_editor(request, plugin, quote_id: int | None = None):
                 },
             )
 
-        parts_catalog = list(
-            Part.objects.filter(active=True)
-            .order_by("name", "IPN")
-            .values("pk", "name", "IPN", "description")
-        )
         customers_catalog = list(
             quote_form.fields["customer"].queryset.values("pk", "name", "currency")
         )
+        sales_order = None
+        if quote.pk and quote.sales_order_id:
+            from order.models import SalesOrder
+
+            sales_order = SalesOrder.objects.filter(pk=quote.sales_order_id).first()
         context = {
             "plugin_title": plugin.TITLE,
             "plugin_version": plugin.VERSION,
@@ -283,18 +283,56 @@ def quote_editor(request, plugin, quote_id: int | None = None):
             "defaults_form": defaults_form,
             "can_manage_defaults": can_manage_defaults,
             "line_formset": line_formset,
-            "parts_catalog": parts_catalog,
             "customers_catalog": customers_catalog,
             "price_api_url": f"{plugin.control_panel_url}api/resolve-price/",
+            "part_search_api_url": f"{plugin.control_panel_url}api/parts/search/",
             "pdf_url": f"{plugin.control_panel_url}{quote.pk}/pdf/" if quote.pk else "",
             "duplicate_url": (
                 f"{plugin.control_panel_url}{quote.pk}/duplicate/" if quote.pk else ""
             ),
             "delete_url": f"{plugin.control_panel_url}{quote.pk}/delete/" if quote.pk else "",
+            "convert_url": (
+                f"{plugin.control_panel_url}{quote.pk}/create-sales-order/" if quote.pk else ""
+            ),
+            "sales_order": sales_order,
+            "sales_order_url": sales_order.get_absolute_url() if sales_order else "",
         }
         response = render(request, "inventree_quote_generator/quote_editor.html", context)
         response["Cache-Control"] = "no-store"
         return response
+
+    return authenticated_view(request)
+
+
+def create_sales_order(request, plugin, quote_id: int):
+    """Create a pending native InvenTree sales order from an accepted quote."""
+
+    from django.contrib import messages
+    from django.contrib.auth.decorators import login_required
+    from django.core.exceptions import ValidationError
+    from django.shortcuts import get_object_or_404, redirect
+    from django.views.decorators.http import require_POST
+
+    @login_required
+    @require_POST
+    def authenticated_view(request):
+        _require_sales_role(request.user, "change")
+        from .models import Quote
+        from .workflow import convert_quote_to_sales_order
+
+        quote = get_object_or_404(Quote, pk=quote_id)
+        try:
+            sales_order, created = convert_quote_to_sales_order(quote, request.user)
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+            return redirect(f"{plugin.control_panel_url}{quote.pk}/edit/")
+
+        if created:
+            messages.success(
+                request,
+                f"Sales order {sales_order.reference} was created as a pending order.",
+            )
+        return redirect(sales_order.get_absolute_url())
 
     return authenticated_view(request)
 
@@ -498,6 +536,49 @@ def resolve_price_api(request):
                 "message": result.message,
             }
         )
+        response["Cache-Control"] = "no-store"
+        return response
+
+    return authenticated_view(request)
+
+
+def part_search_api(request):
+    """Return a small, searchable part catalog for the quote line picker."""
+
+    from django.contrib.auth.decorators import login_required
+    from django.db.models import Q
+    from django.http import JsonResponse
+    from part.models import Part
+
+    @login_required
+    def authenticated_view(request):
+        _require_sales_role(request.user, "view")
+        query = str(request.GET.get("q", "") or "").strip()
+        if len(query) < 2:
+            return JsonResponse({"results": []})
+
+        parts = (
+            Part.objects.filter(active=True)
+            .filter(
+                Q(IPN__icontains=query)
+                | Q(name__icontains=query)
+                | Q(description__icontains=query)
+            )
+            .order_by("IPN", "name")[:25]
+        )
+        results = [
+            {
+                "pk": part.pk,
+                "IPN": part.IPN or "",
+                "name": part.name or "",
+                "description": part.description or "",
+                "label": " - ".join(
+                    value for value in (part.IPN, part.name or part.description) if value
+                ),
+            }
+            for part in parts
+        ]
+        response = JsonResponse({"results": results})
         response["Cache-Control"] = "no-store"
         return response
 

@@ -87,6 +87,20 @@ class Quote(models.Model):
     show_totals = models.BooleanField(default=False)
     internal_notes = models.TextField(blank=True, default="")
 
+    # Store the InvenTree object ID instead of a database-level foreign key. This
+    # keeps the plugin migration independent from InvenTree's internal order
+    # migrations while still enforcing one sales order per quote.
+    sales_order_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
+    sales_order_reference = models.CharField(max_length=64, blank=True, default="")
+    converted_at = models.DateTimeField(null=True, blank=True)
+    converted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

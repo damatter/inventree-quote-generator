@@ -95,7 +95,7 @@
     <div class="error-banner" role="alert"><strong>The quote needs attention.</strong> Review the highlighted fields and line items below.</div>
     {% endif %}
 
-    <form method="post" data-quote-form data-price-api="{{ price_api_url }}" data-quote-id="{{ quote.pk|default:'new' }}">
+    <form method="post" data-quote-form data-price-api="{{ price_api_url }}" data-part-search-api="{{ part_search_api_url }}" data-quote-id="{{ quote.pk|default:'new' }}">
         {% csrf_token %}
         <div class="editor-grid">
             <div class="editor-main">
@@ -207,6 +207,20 @@
                     {% if quote.pk %}
                     <hr style="border:0;border-top:1px solid #dce4e8;margin:16px 0">
                     <div class="action-stack">
+                        {% if sales_order %}
+                        <a class="button" href="{{ sales_order_url }}">Open Sales Order {{ sales_order.reference }}</a>
+                        <p class="muted-note">This quote has already been converted.</p>
+                        {% elif quote.sales_order_id %}
+                        <p class="field-error">The linked sales order could not be found. Ask an administrator to review this quote.</p>
+                        {% elif quote.status == "accepted" %}
+                        <button class="button" type="submit" form="create-sales-order-form" data-confirm-sales-order>Create Sales Order</button>
+                        <p class="muted-note">Creates a pending InvenTree order for review. It does not issue, ship, or invoice it.</p>
+                        {% else %}
+                        <p class="muted-note">Mark this quote Accepted and save it to create a sales order.</p>
+                        {% endif %}
+                    </div>
+                    <hr style="border:0;border-top:1px solid #dce4e8;margin:16px 0">
+                    <div class="action-stack">
                         <button class="button secondary" type="submit" form="duplicate-quote-form">Duplicate as draft</button>
                         <button class="button danger" type="submit" form="delete-quote-form" data-confirm-delete>Delete quote</button>
                     </div>
@@ -217,11 +231,11 @@
     </form>
 
     {% if quote.pk %}
+    <form id="create-sales-order-form" method="post" action="{{ convert_url }}">{% csrf_token %}</form>
     <form id="duplicate-quote-form" method="post" action="{{ duplicate_url }}">{% csrf_token %}</form>
     <form id="delete-quote-form" method="post" action="{{ delete_url }}">{% csrf_token %}</form>
     {% endif %}
 
-    {{ parts_catalog|json_script:"quote-parts-catalog" }}
     {{ customers_catalog|json_script:"quote-customers-catalog" }}
 </main>
 <script type="module" src="{{ site_js_url }}"></script>
