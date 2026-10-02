@@ -8,12 +8,13 @@ from company.models import Company
 from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
+from django.db.migrations.recorder import MigrationRecorder
 from plugin.registry import registry
 
 from inventree_quote_generator.pdf import quote_document_from_model, render_quote_pdf
 from inventree_quote_generator.sage import render_sage_csv
 
-# This script deliberately rolls back historical schema on TEST DATABASES ONLY.
+# This script deliberately recreates plugin tables on TEST DATABASES ONLY.
 assert os.environ.get("QUOTE_MIGRATION_TEST") == "1"
 assert str(connection.settings_dict["NAME"]) in (
     "/tmp/quote-migrations.sqlite3", "quote_migrations_test"
@@ -45,13 +46,22 @@ def index_names():
 
 # The preceding normal migrate command already proves a clean installation.
 assert LATEST in MigrationExecutor(connection).loader.applied_migrations
+assert "inventree_q_status_caae15_idx" in index_names()
+assert "inventree_q_custome_eec6d5_idx" in index_names()
 for case, (label, starting_targets) in enumerate((
     ("old letterhead release", [BASE]),
     ("server index branch", [RENAME]),
     ("published Sage release", [SAGE]),
     ("both branches already applied", [RENAME, SAGE]),
 ), start=1):
-    migrate([BASE])
+    # Build each historical starting point independently. Reversing divergent
+    # migrations can reconstruct SQLite indexes in a different order, which is
+    # not how any of the supported installations reached their starting state.
+    latest_apps = MigrationExecutor(connection).loader.project_state([LATEST]).apps
+    with connection.schema_editor() as editor:
+        for model_name in ("QuoteLineItem", "Quote", "QuoteSequence"):
+            editor.delete_model(latest_apps.get_model(APP, model_name))
+    MigrationRecorder(connection).migration_qs.filter(app=APP).delete()
     historical = migrate(starting_targets)
     Quote = historical.get_model(APP, "Quote")
     Line = historical.get_model(APP, "QuoteLineItem")
