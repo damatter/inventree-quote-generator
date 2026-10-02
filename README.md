@@ -44,14 +44,14 @@ every line switches to manual pricing and explains why.
 ## Install
 
 [Latest release](https://github.com/damatter/inventree-quote-generator/releases/latest) ·
-[Version 0.3.0](https://github.com/damatter/inventree-quote-generator/releases/tag/0.3.0) ·
-[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.3.0/CHANGELOG.md)
+[Version 0.3.1](https://github.com/damatter/inventree-quote-generator/releases/tag/0.3.1) ·
+[Changelog](https://github.com/damatter/inventree-quote-generator/blob/0.3.1/CHANGELOG.md)
 
 In **Admin Center → Plugins → Install Plugin**, enter these values exactly:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.1
 Version:     (leave blank)
 ```
 
@@ -67,14 +67,19 @@ Then:
 Container installations should enable **Check Plugins on Startup** so the installed plugin
 is restored after container replacement.
 
-### Update an existing installation to 0.3.0
+### Update an existing installation to 0.3.1
+
+Version 0.3.1 reconciles the historical index-rename and Sage migration branches.
+Install the package on both server and worker before running migrations. Keep any
+already-applied migrations recorded; do not delete migration files or fake/unapply
+them to clear the conflict. Existing quotes, prices and Sage history are retained.
 
 Return to **Admin Center → Plugins** and edit or reinstall the package using the same values,
 changing only the release tag at the end of **Source URL**:
 
 ```text
 Package Name: inventree-quote-generator
-Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
+Source URL:  git+https://github.com/damatter/inventree-quote-generator.git@0.3.1
 Version:     (leave blank)
 ```
 
@@ -89,7 +94,7 @@ multi-process plugin static-file race.
 For installations managed directly with `plugins.txt`, use:
 
 ```text
-inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.3.0
+inventree-quote-generator @ git+https://github.com/damatter/inventree-quote-generator.git@0.3.1
 ```
 
 Update by changing the tag after the final `@`, then run `invoke plugins` (or the normal

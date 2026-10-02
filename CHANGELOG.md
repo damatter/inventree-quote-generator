@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 - 2026-10-01
+
+- Package the historical index-renaming migration and merge it with the Sage
+  migration branch so normal InvenTree upgrades no longer report conflicting leaves.
+- Keep explicit index names aligned with the migration history to prevent repeated
+  automatic rename migrations. Existing quotes and accounting links are preserved.
+- Test fresh installation and all historical upgrade paths in official InvenTree
+  1.3.5 containers, including database indexes, PDF output and Sage export.
+
 ## 0.3.0 - 2026-09-22
 
 - Replace native InvenTree Sales Order creation with a direct accepted-quote Sage handoff.

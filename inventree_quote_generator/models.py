@@ -149,8 +149,8 @@ class Quote(models.Model):
     class Meta:
         ordering = ["-issue_date", "-pk"]
         indexes = [
-            models.Index(fields=["status", "-issue_date"]),
-            models.Index(fields=["customer", "-issue_date"]),
+            models.Index(fields=["status", "-issue_date"], name="inventree_q_status_caae15_idx"),
+            models.Index(fields=["customer", "-issue_date"], name="inventree_q_custome_eec6d5_idx"),
         ]
 
     def __str__(self):

@@ -1,0 +1,60 @@
+name: Test and package
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          pip install -e '.[dev]'
+          pytest -q
+          ruff check .
+          python -m build
+  inventree:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite3, postgresql]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: quote_migrations_test
+          POSTGRES_USER: quote_test
+          POSTGRES_PASSWORD: disposable-test-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: InvenTree 1.3.5 installation and migration histories
+        env:
+          TEST_DATABASE: ${{ matrix.database }}
+        run: |
+          if [ "$TEST_DATABASE" = sqlite3 ]; then
+            DB_NAME=/tmp/quote-migrations.sqlite3
+          else
+            DB_NAME=quote_migrations_test
+          fi
+          docker run --rm --network host --entrypoint /bin/bash \
+            -e INVENTREE_PLUGINS_ENABLED=true \
+            -e INVENTREE_PLUGIN_NOINSTALL=true \
+            -e INVENTREE_DB_ENGINE="$TEST_DATABASE" \
+            -e INVENTREE_DB_NAME="$DB_NAME" \
+            -e INVENTREE_DB_HOST=127.0.0.1 \
+            -e INVENTREE_DB_PORT=5432 \
+            -e INVENTREE_DB_USER=quote_test \
+            -e INVENTREE_DB_PASSWORD=disposable-test-password \
+            -e INVENTREE_SITE_URL=http://localhost \
+            -e INVENTREE_DEBUG=false \
+            -e QUOTE_MIGRATION_TEST=1 \
+            -v "$PWD:/plugin-src:ro" inventree/inventree:1.3.5 \
+            -lc 'set -e; mkdir -p /home/inventree/data; cp -R /plugin-src /tmp/plugin-build; pip install /tmp/plugin-build; cd /home/inventree/src/backend/InvenTree; python manage.py migrate --noinput; python manage.py shell < /plugin-src/tests/inventree_enable.py; python manage.py migrate --noinput; python manage.py shell < /plugin-src/tests/inventree_migrations.py'
